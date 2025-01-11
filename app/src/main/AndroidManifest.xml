@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Permissions -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="com.google.android.gms.permission.BIND_GET_INSTALL_REFERRER_SERVICE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+
+
+    <!-- Require Camera Hardware -->
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+
+    <application
+        android:name=".SmartTrackApplication"
+        android:allowBackup="true"
+        android:icon="@drawable/logo"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/logo"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SmartTrack">
+
+        <!-- Google Play Services Metadata -->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
+
+       <meta-data
+            android:name="com.google.firebase.ml.vision.DEPENDENCIES"
+            android:value="face" />
+
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="face" />
+
+        <!-- CameraX Metadata -->
+        <meta-data
+            android:name="androidx.camera.lifecycle.ProcessCameraProvider"
+            android:value="androidx.camera.camera2.Camera2Config" />
+
+        <!-- Landing Page Activity -->
+        <activity
+            android:name=".Landingpage"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.SmartTrack">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- URL Handling -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" android:host="www.example.com" />
+            </intent-filter>
+        </activity>
+
+        <!-- Other Activities -->
+        <activity
+            android:name=".Login"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Register"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+
+        <!--Student-->
+        <activity
+            android:name=".Students_Home"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Students_Room"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Students_Report"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Students_Calendar"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+
+        <!--Teacher-->
+        <activity
+            android:name=".Teachers_Home"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Teachers_Room"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Teachers_Report"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Teachers_Calendar"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+
+        <activity
+            android:name=".Teachers_CreateRoom"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <!--Admin-->
+        <activity
+            android:name=".Admins_Home"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Adminss_Room"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Admins_Report"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Admins_Calendar"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".ForgotPassword"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".FaceRecognition"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+
+    </application>
+</manifest>

@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">SmartTrack</string>
+    <string-array name="user_types">
+        <item>Student</item>
+        <item>Teacher</item>
+    </string-array>
+
+    <string-array name="gender_options">
+        <item>Male</item>
+        <item>Female</item>
+    </string-array>
+</resources>

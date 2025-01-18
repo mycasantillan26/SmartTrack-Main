@@ -205,6 +205,7 @@ public class Register extends AppCompatActivity {
         firebaseAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
+                        // User registration successful, now send email verification
                         sendEmailVerification(() -> saveTeacherToFirestore());
                     } else {
                         Toast.makeText(this, "Error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
@@ -212,7 +213,10 @@ public class Register extends AppCompatActivity {
                 });
     }
 
+
     private void saveTeacherToFirestore() {
+        String uid = firebaseAuth.getCurrentUser().getUid();  // Get the Firebase Auth UID
+
         Map<String, Object> teacherData = new HashMap<>();
         teacherData.put("email", emailField.getText().toString());
         teacherData.put("firstName", firstNameField.getText().toString());
@@ -222,8 +226,10 @@ public class Register extends AppCompatActivity {
         teacherData.put("userType", "Teacher");
         teacherData.put("isConfirmedByAdmin", false); // Admin approval required
 
+        // Save teacher data with UID as document ID
         firestore.collection("teachers")
-                .add(teacherData)
+                .document(uid)  // Use the Firebase UID as the document ID
+                .set(teacherData)
                 .addOnSuccessListener(documentReference -> {
                     Toast.makeText(this, "Confirmation email sent. Please verify your email and wait for admin approval to log in.", Toast.LENGTH_SHORT).show();
                     navigateToLogin();
@@ -239,6 +245,7 @@ public class Register extends AppCompatActivity {
         firebaseAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
+                        // User registration successful, now send email verification
                         sendEmailVerification(() -> saveStudentToFirestore());
                     } else {
                         Toast.makeText(this, "Error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
@@ -247,6 +254,8 @@ public class Register extends AppCompatActivity {
     }
 
     private void saveStudentToFirestore() {
+        String uid = firebaseAuth.getCurrentUser().getUid();  // Get the Firebase Auth UID
+
         Map<String, Object> studentData = new HashMap<>();
         studentData.put("email", emailField.getText().toString());
         studentData.put("firstName", firstNameField.getText().toString());
@@ -261,16 +270,17 @@ public class Register extends AppCompatActivity {
         studentData.put("cityAddress", cityAddressField.getText().toString());
         studentData.put("contactNumber", contactNumberField.getText().toString());
 
+        // Save student data with UID as document ID
         firestore.collection("students")
-                .add(studentData)
+                .document(uid)  // Use the Firebase UID as the document ID
+                .set(studentData)
                 .addOnSuccessListener(documentReference -> {
                     Toast.makeText(this, "Confirmation email sent. Please verify your email to log in.", Toast.LENGTH_SHORT).show();
-                    navigateToFaceRecognition(documentReference.getId()); // Pass document ID
+                    navigateToFaceRecognition(uid); // Pass the UID for further use
                 })
                 .addOnFailureListener(e ->
                         Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
-
     private void sendEmailVerification(Runnable onSuccess) {
         firebaseAuth.getCurrentUser().sendEmailVerification()
                 .addOnCompleteListener(task -> {

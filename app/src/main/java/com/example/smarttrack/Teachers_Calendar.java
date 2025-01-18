@@ -105,7 +105,7 @@ public class Teachers_Calendar extends AppCompatActivity {
     }
 
     private void fetchStudentDetailed(String uid) {
-        FirebaseFirestore.getInstance().collection("students")
+        FirebaseFirestore.getInstance().collection("teachers")
                 .document(uid)
                 .get()
                 .addOnSuccessListener(document -> {

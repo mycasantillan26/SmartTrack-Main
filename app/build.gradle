@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.compose'
     id 'com.google.gms.google-services'
+
 }
 
 android {
@@ -69,6 +70,7 @@ dependencies {
    // implementation 'com.google.firebase:firebase-ml-model-interpreter'
     implementation 'org.tensorflow:tensorflow-lite:2.12.0'
    // implementation 'com.google.android.gms:play-services-base:21.0.1'
+    implementation 'com.journeyapps:zxing-android-embedded:3.6.0'
 
 
     // ML Kit (Face Detection)
@@ -105,4 +107,9 @@ dependencies {
     implementation 'androidx.drawerlayout:drawerlayout:1.1.1'
     implementation 'androidx.navigation:navigation-ui:2.5.3'  // for NavigationView
     implementation 'androidx.navigation:navigation-fragment:2.5.3' // for FragmentNav
+
+
+    // ZXing for QR code processing
+    implementation 'com.journeyapps:zxing-android-embedded:3.6.0'
+
 }

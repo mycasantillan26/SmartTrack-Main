@@ -2,6 +2,7 @@ package com.example.smarttrack;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -18,6 +19,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 public class Students_Room extends AppCompatActivity {
+
+    private static final String TAG = "Students_Room";
 
     private ImageView reportIcon;
     private ImageView homeIcon;
@@ -70,12 +73,6 @@ public class Students_Room extends AppCompatActivity {
         navUsername = navigationView.findViewById(R.id.navUsername);
         navIdNumber = navigationView.findViewById(R.id.navIdNumber);
 
-        reportIcon.setClickable(true);
-        homeIcon.setClickable(true);
-        scheduleIcon.setClickable(true);
-        scanQRButton.setClickable(true);
-        inputCodeButton.setClickable(true);
-
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
 
@@ -119,85 +116,134 @@ public class Students_Room extends AppCompatActivity {
                         String idNumber = document.getString("idNumber");
                         navUsername.setText(firstName + " " + lastName);
                         navIdNumber.setText(idNumber);
+                        Log.d(TAG, "Student details fetched: " + firstName + " " + lastName);
+                    } else {
+                        Log.d(TAG, "Student document does not exist.");
                     }
                 })
                 .addOnFailureListener(e -> {
                     navUsername.setText("Error fetching details");
                     navIdNumber.setText("");
+                    Log.e(TAG, "Error fetching student details: " + e.getMessage());
                 });
     }
 
     private void fetchSections() {
+        Log.d(TAG, "Fetching sections...");
+
         FirebaseFirestore.getInstance().collection("sections")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
+                        Log.d(TAG, "Sections fetched successfully. Count: " + queryDocumentSnapshots.size());
                         noRoomsTextView.setVisibility(View.GONE);
                         roomsLayout.removeAllViews();
+
                         for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                            String sectionName = document.getId();
-                            createSectionButton(sectionName, document);
+                            String sectionId = document.getId(); // Example: "11111-G01"
+                            Log.d(TAG, "Section ID found: " + sectionId);
+
+                            // Check if the user is enrolled in this section
+                            checkStudentEnrollment(sectionId);
                         }
                     } else {
                         noRoomsTextView.setVisibility(View.VISIBLE);
+                        Log.d(TAG, "No sections available.");
                     }
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(this, "Error fetching sections: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error fetching sections: " + e.getMessage());
                 });
     }
 
 
-    private void createSectionButton(String sectionName, QueryDocumentSnapshot document) {
+    private void checkStudentEnrollment(String sectionId) {
+        Log.d(TAG, "Checking student enrollment in section: " + sectionId);
+
+        FirebaseFirestore.getInstance()
+                .collection("sections")
+                .document(sectionId)
+                .collection("students")
+                .document(uid) // Match the current user ID
+                .get()
+                .addOnSuccessListener(studentDoc -> {
+                    if (studentDoc.exists()) {
+                        Log.d(TAG, "User is enrolled in section: " + sectionId);
+
+                        String[] parts = sectionId.split("-");
+                        if (parts.length == 2) {
+                            String subjectCode = parts[0];
+                            String sectionName = parts[1];
+                            createSectionButton(subjectCode, sectionName, sectionId);
+                        } else {
+                            Log.e(TAG, "Invalid section ID format: " + sectionId);
+                        }
+                    } else {
+                        Log.d(TAG, "User not enrolled in section: " + sectionId);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking enrollment in section: " + sectionId, e);
+                });
+    }
+
+
+
+
+    private void createSectionButton(String subjectCode, String sectionName, String sectionId) {
+        Log.d(TAG, "Creating button for: " + subjectCode + " - " + sectionName);
+
         Button sectionButton = new Button(this);
         sectionButton.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 100
         ));
-        sectionButton.setText(sectionName);
+        String buttonLabel = subjectCode + " - " + sectionName;
+        sectionButton.setText(buttonLabel);
         sectionButton.setTextSize(18);
         sectionButton.setTextColor(getResources().getColor(R.color.maroon, null));
         sectionButton.setBackgroundResource(R.drawable.button_border);
         sectionButton.setPadding(20, 20, 20, 20);
 
-        // Add a layout for displaying students
-        LinearLayout studentLayout = new LinearLayout(this);
-        studentLayout.setOrientation(LinearLayout.VERTICAL);
-        studentLayout.setVisibility(View.GONE);
-
         sectionButton.setOnClickListener(v -> {
-            if (studentLayout.getVisibility() == View.GONE) {
-                studentLayout.setVisibility(View.VISIBLE);
-                fetchStudents(sectionName, studentLayout);
-            } else {
-                studentLayout.setVisibility(View.GONE);
-            }
+            Toast.makeText(this, "Section clicked: " + buttonLabel, Toast.LENGTH_SHORT).show();
         });
 
         roomsLayout.addView(sectionButton);
-        roomsLayout.addView(studentLayout);
     }
 
-    private void fetchStudents(String sectionName, LinearLayout studentLayout) {
-        FirebaseFirestore.getInstance().collection("sections")
-                .document(sectionName)
-                .collection("students")
+
+
+
+    private void fetchStudents(String sectionPath, LinearLayout studentLayout) {
+        Log.d(TAG, "Fetching students for: " + sectionPath);
+
+        FirebaseFirestore.getInstance().collection(sectionPath + "/students")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     studentLayout.removeAllViews();
-                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        String studentId = document.getId();
-                        String roomId = document.getString("roomId");
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        Log.d(TAG, "Students fetched for section: " + sectionPath + ". Count: " + queryDocumentSnapshots.size());
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            String studentId = document.getId();
+                            Log.d(TAG, "Student ID: " + studentId);
 
-                        TextView studentTextView = new TextView(this);
-                        studentTextView.setText("Student ID: " + studentId + " | Room ID: " + roomId);
-                        studentTextView.setTextSize(16);
-                        studentTextView.setPadding(20, 10, 20, 10);
-                        studentLayout.addView(studentTextView);
+                            TextView studentTextView = new TextView(this);
+                            studentTextView.setText("Student ID: " + studentId);
+                            studentTextView.setTextSize(16);
+                            studentTextView.setPadding(20, 10, 20, 10);
+
+                            studentLayout.addView(studentTextView);
+                        }
+                    } else {
+                        Toast.makeText(this, "No students found in this section.", Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "No students found for section: " + sectionPath);
                     }
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(this, "Error fetching students: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error fetching students for section: " + sectionPath, e);
                 });
     }
 

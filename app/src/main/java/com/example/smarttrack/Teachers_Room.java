@@ -55,6 +55,12 @@ public class Teachers_Room extends AppCompatActivity {
         navUsername = navigationView.findViewById(R.id.navUsername);
         navIdNumber = navigationView.findViewById(R.id.navIdNumber);
         createRoomButton = findViewById(R.id.createRoomButton);
+        Button inputCodeButton = findViewById(R.id.inputCodeButton);
+        TextView ORtextView = findViewById(R.id.ORtextView);
+
+        inputCodeButton.setVisibility(View.GONE);
+        ORtextView.setVisibility(View.GONE);
+
 
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
@@ -167,29 +173,26 @@ public class Teachers_Room extends AppCompatActivity {
         // Set onClickListeners for the buttons inside the floating window
         generateCodeButton.setOnClickListener(v -> {
             Intent intent = new Intent(Teachers_Room.this, GenerateCode.class);
-            intent.putExtra("roomCode", roomCode); // roomCode must be retrieved from Firestore
-            intent.putExtra("subjectSection", subjectCode + " - " + section); // construct this from your document fields
+            intent.putExtra("roomCode", roomCode); // Pass the roomCode to GenerateCode
+            intent.putExtra("subjectSection", subjectCode + " - " + section); // Include subject and section
             startActivity(intent);
-
         });
 
         viewStudentsButton.setOnClickListener(v -> {
             Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
-            intent.putExtra("room", roomCode);  // Pass the room identifier to the ViewStudents activity
+            intent.putExtra("section", section); // Pass the section to ViewStudents
+            intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
             startActivity(intent);
         });
 
+        // Close button for the floating window
+        ImageView closeFloatingWindow = findViewById(R.id.closeFloatingWindow);
+        closeFloatingWindow.setOnClickListener(v -> {
+            floatingWindow.setVisibility(View.GONE);  // Hide the floating window
+            roomsLayout.setVisibility(View.VISIBLE);  // Show the rooms layout again
+        });
+    }
 
-
-    // Close button for the floating window
-    ImageView closeFloatingWindow = findViewById(R.id.closeFloatingWindow);
-        closeFloatingWindow.setOnClickListener(v ->
-
-    {
-        floatingWindow.setVisibility(View.GONE);  // Hide the floating window
-        roomsLayout.setVisibility(View.VISIBLE);  // Show the rooms layout again
-    });
-}
 
 
     // Fetch teacher details (name, idNumber, etc.)

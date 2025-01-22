@@ -3,6 +3,8 @@ package com.example.smarttrack;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
@@ -10,7 +12,6 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -18,6 +19,8 @@ public class ViewStudents extends AppCompatActivity {
 
     private static final String TAG = "ViewStudents";
     private FirebaseFirestore db;
+    private TableLayout tableLayout;
+    private LinearLayout containerLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,70 +28,111 @@ public class ViewStudents extends AppCompatActivity {
         setContentView(R.layout.activity_view_students);
 
         db = FirebaseFirestore.getInstance();
+        containerLayout = findViewById(R.id.containerLayout);
+        tableLayout = findViewById(R.id.studentsTable);
 
-        String roomCode = getIntent().getStringExtra("roomCode");
+        String roomId = getIntent().getStringExtra("roomId");
 
-        if (roomCode == null || roomCode.isEmpty()) {
-            Toast.makeText(this, "Room code not provided. Please try again.", Toast.LENGTH_LONG).show();
-            Log.e(TAG, "Room code is null or empty.");
-            finish(); // Exit the activity if no roomCode is provided
+        if (roomId == null || roomId.isEmpty()) {
+            Toast.makeText(this, "Room ID not provided. Please try again.", Toast.LENGTH_LONG).show();
+            Log.e(TAG, "Room ID is null or empty.");
+            finish(); // Exit the activity if no roomId is provided
             return;
         }
 
-        Log.d(TAG, "Room code provided: " + roomCode);
-        fetchRoomIdFromRoomCode(roomCode);
+        Log.d(TAG, "Room ID provided: " + roomId);
+        fetchTeacherDetails(roomId); // Fetch teacher details first
+        fetchStudentsFromRoom(roomId);
     }
 
-    private void fetchRoomIdFromRoomCode(String roomCode) {
-        Log.d(TAG, "Fetching room ID for room code: " + roomCode);
+    private void fetchTeacherDetails(String roomId) {
+        Log.d(TAG, "Fetching teacher details for room ID: " + roomId);
 
         db.collection("rooms")
-                .whereEqualTo("roomCode", roomCode)
+                .document(roomId)
                 .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    if (!queryDocumentSnapshots.isEmpty()) {
-                        DocumentSnapshot roomDoc = queryDocumentSnapshots.getDocuments().get(0);
-                        String roomId = roomDoc.getId();
-                        Log.d(TAG, "Room ID found: " + roomId);
-                        fetchStudentsFromRoom(roomId);
+                .addOnSuccessListener(roomDoc -> {
+                    if (roomDoc.exists()) {
+                        String teacherId = roomDoc.getString("teacherId");
+                        if (teacherId != null) {
+                            fetchTeacherName(teacherId);
+                        } else {
+                            Log.e(TAG, "Teacher ID not found for room ID: " + roomId);
+                            addTeacherNameToUI("Unknown Teacher");
+                        }
                     } else {
-                        Toast.makeText(this, "No room found for this code.", Toast.LENGTH_SHORT).show();
-                        Log.e(TAG, "No room found for room code: " + roomCode);
+                        Log.e(TAG, "Room document not found for ID: " + roomId);
+                        addTeacherNameToUI("Unknown Teacher");
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error fetching room ID for room code: " + roomCode, e);
-                    Toast.makeText(this, "Error fetching room ID: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error fetching room details for room ID: " + roomId, e);
+                    addTeacherNameToUI("Error fetching teacher details");
                 });
     }
 
-    private void fetchStudentsFromRoom(String roomId) {
-        TableLayout tableLayout = findViewById(R.id.studentsTable);
+    private void fetchTeacherName(String teacherId) {
+        Log.d(TAG, "Fetching teacher details for Teacher ID: " + teacherId);
 
+        db.collection("teachers")
+                .document(teacherId)
+                .get()
+                .addOnSuccessListener(teacherDoc -> {
+                    if (teacherDoc.exists()) {
+                        String firstName = teacherDoc.getString("firstName");
+                        String middleName = teacherDoc.getString("middleName");
+                        String lastName = teacherDoc.getString("lastName");
+
+                        String fullName = firstName + " " +
+                                (middleName != null ? middleName + " " : "") + lastName;
+
+                        Log.d(TAG, "Teacher Name: " + fullName);
+                        addTeacherNameToUI(fullName);
+                    } else {
+                        Log.e(TAG, "Teacher document not found for ID: " + teacherId);
+                        addTeacherNameToUI("Unknown Teacher");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error fetching teacher details for ID: " + teacherId, e);
+                    addTeacherNameToUI("Error fetching teacher details");
+                });
+    }
+
+    private void addTeacherNameToUI(String teacherName) {
+        TextView teacherNameTextView = new TextView(this);
+        teacherNameTextView.setText("Teacher: " + teacherName);
+        teacherNameTextView.setPadding(8, 50, 8, 50);
+        teacherNameTextView.setGravity(Gravity.CENTER);
+        teacherNameTextView.setTextSize(18);
+        teacherNameTextView.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        containerLayout.addView(teacherNameTextView, 0); // Add teacher name at the top
+    }
+
+
+
+    private void fetchStudentsFromRoom(String roomId) {
         String roomPath = "rooms/" + roomId + "/students";
         Log.d(TAG, "Fetching students from path: " + roomPath);
 
-        CollectionReference studentsCollection = db.collection(roomPath);
-
-        studentsCollection.get()
+        db.collection(roomPath)
+                .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         for (DocumentSnapshot studentDoc : queryDocumentSnapshots) {
                             String studentId = studentDoc.getId();
-                            String subjectCode = studentDoc.getString("subjectCode");
-                            String section = studentDoc.getString("section");
 
-                            if (studentId != null && subjectCode != null && section != null) {
-                                Log.d(TAG, "Room ID: " + roomId + ", Student ID: " + studentId +
-                                        ", Subject Code: " + subjectCode + ", Section: " + section);
-                                fetchStudentDetails(studentId, subjectCode, section, tableLayout);
+                            if (studentId != null) {
+                                fetchStudentDetails(studentId);
                             } else {
-                                Log.e(TAG, "Missing data for student in room: " + roomId);
+                                Log.e(TAG, "Missing student ID for a document in room: " + roomId);
                             }
                         }
                     } else {
                         Toast.makeText(this, "No students found in this room.", Toast.LENGTH_SHORT).show();
                         Log.d(TAG, "No students found for room ID: " + roomId);
+                        addEmptyRowToTable("No students found");
                     }
                 })
                 .addOnFailureListener(e -> {
@@ -97,8 +141,8 @@ public class ViewStudents extends AppCompatActivity {
                 });
     }
 
-    private void fetchStudentDetails(String studentId, String subjectCode, String section, TableLayout tableLayout) {
-        Log.d(TAG, "Fetching details for Student ID: " + studentId + " from 'students' collection.");
+    private void fetchStudentDetails(String studentId) {
+        Log.d(TAG, "Fetching details for Student ID: " + studentId);
 
         db.collection("students")
                 .document(studentId)
@@ -113,9 +157,7 @@ public class ViewStudents extends AppCompatActivity {
                         String fullName = firstName + " " +
                                 (middleName != null ? middleName + " " : "") + lastName;
 
-                        Log.d(TAG, "Student Details: " + fullName + ", ID: " + idNumber);
-
-                        addStudentRowToTable(idNumber, fullName, subjectCode, section, tableLayout);
+                        addStudentRowToTable(idNumber, fullName);
                     } else {
                         Log.e(TAG, "Student document not found for ID: " + studentId);
                     }
@@ -126,7 +168,7 @@ public class ViewStudents extends AppCompatActivity {
                 });
     }
 
-    private void addStudentRowToTable(String idNumber, String fullName, String subjectCode, String section, TableLayout tableLayout) {
+    private void addStudentRowToTable(String idNumber, String fullName) {
         TableRow row = new TableRow(this);
         row.setLayoutParams(new TableRow.LayoutParams(
                 TableRow.LayoutParams.MATCH_PARENT,
@@ -147,14 +189,22 @@ public class ViewStudents extends AppCompatActivity {
         nameTextView.setGravity(Gravity.CENTER);
         row.addView(nameTextView);
 
-        // Add Subject Code - Section column
-        TextView subjectSectionTextView = new TextView(this);
-        subjectSectionTextView.setText(subjectCode + " - " + section);
-        subjectSectionTextView.setPadding(8, 8, 8, 8);
-        subjectSectionTextView.setGravity(Gravity.CENTER);
-        row.addView(subjectSectionTextView);
+        tableLayout.addView(row);
+    }
 
-        // Add the row to the table layout
+    private void addEmptyRowToTable(String message) {
+        TableRow row = new TableRow(this);
+        row.setLayoutParams(new TableRow.LayoutParams(
+                TableRow.LayoutParams.MATCH_PARENT,
+                TableRow.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView messageTextView = new TextView(this);
+        messageTextView.setText(message);
+        messageTextView.setPadding(8, 8, 8, 8);
+        messageTextView.setGravity(Gravity.CENTER);
+        row.addView(messageTextView);
+
         tableLayout.addView(row);
     }
 }

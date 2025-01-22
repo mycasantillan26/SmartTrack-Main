@@ -161,8 +161,10 @@ public class Teachers_Room extends AppCompatActivity {
 
     // Method to show the floating window with buttons
     private void showFloatingWindow(String roomCode, String subjectCode, String section) {
+        View blurBackground = findViewById(R.id.blurBackground);
         floatingWindow.setVisibility(View.VISIBLE);  // Show the floating window
-        roomsLayout.setVisibility(View.GONE);  // Hide rooms layout
+        blurBackground.setVisibility(View.VISIBLE);  // Show the blur background
+        roomsLayout.setVisibility(View.GONE);
 
         // Set room-related text
         Button generateCodeButton = findViewById(R.id.generateCodeButton);
@@ -184,20 +186,40 @@ public class Teachers_Room extends AppCompatActivity {
                 return;
             }
 
-            Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
-            intent.putExtra("roomId", roomCode); // Pass the roomId to ViewStudents
-            intent.putExtra("section", section); // Pass the section to ViewStudents
-            intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
-            startActivity(intent);
+            // Fetch the roomId based on the roomCode before transitioning
+            FirebaseFirestore.getInstance().collection("rooms")
+                    .whereEqualTo("roomCode", roomCode)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        if (!queryDocumentSnapshots.isEmpty()) {
+                            String roomId = queryDocumentSnapshots.getDocuments().get(0).getId();
+                            Log.d("showFloatingWindow", "Room ID resolved: " + roomId);
+
+                            Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
+                            intent.putExtra("roomId", roomId); // Pass the resolved roomId to ViewStudents
+                            intent.putExtra("section", section); // Pass the section to ViewStudents
+                            intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(this, "No room found for the provided code.", Toast.LENGTH_SHORT).show();
+                            Log.e("showFloatingWindow", "No room found for roomCode: " + roomCode);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Error fetching room ID: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Log.e("showFloatingWindow", "Error fetching room ID for roomCode: " + roomCode, e);
+                    });
         });
 
         // Close button for the floating window
         ImageView closeFloatingWindow = findViewById(R.id.closeFloatingWindow);
         closeFloatingWindow.setOnClickListener(v -> {
             floatingWindow.setVisibility(View.GONE);  // Hide the floating window
+            blurBackground.setVisibility(View.GONE);  // Hide the blur background
             roomsLayout.setVisibility(View.VISIBLE);  // Show the rooms layout again
         });
     }
+
 
 
     // Fetch teacher details (name, idNumber, etc.)

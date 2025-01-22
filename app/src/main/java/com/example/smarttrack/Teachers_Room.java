@@ -179,7 +179,13 @@ public class Teachers_Room extends AppCompatActivity {
         });
 
         viewStudentsButton.setOnClickListener(v -> {
+            if (roomCode == null || roomCode.isEmpty()) {
+                Toast.makeText(this, "Room Code is missing. Cannot view students.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
+            intent.putExtra("roomId", roomCode); // Pass the roomId to ViewStudents
             intent.putExtra("section", section); // Pass the section to ViewStudents
             intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
             startActivity(intent);
@@ -192,7 +198,6 @@ public class Teachers_Room extends AppCompatActivity {
             roomsLayout.setVisibility(View.VISIBLE);  // Show the rooms layout again
         });
     }
-
 
 
     // Fetch teacher details (name, idNumber, etc.)

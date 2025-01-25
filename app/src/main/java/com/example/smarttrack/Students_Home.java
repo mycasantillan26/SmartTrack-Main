@@ -9,8 +9,10 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,21 +20,28 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import android.view.Gravity;
+
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.material.navigation.NavigationView;
-
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 
 public class Students_Home extends AppCompatActivity {
+    private static final String TAG = "Students_Home";
+    private static final int QR_CODE_REQUEST_CODE = 1001;
 
     private ImageView roomIcon;
     private ImageView reportIcon;
@@ -45,6 +54,10 @@ public class Students_Home extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private TextView navUsername, navIdNumber;
+    private TextView noRoomsTextView;
+    private LinearLayout roomsLayout;
+    private LinearLayout floatingWindow;
+    private String uid;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,11 +69,11 @@ public class Students_Home extends AppCompatActivity {
         getSupportActionBar().setDisplayShowTitleEnabled(false);
         TextView toolbarTitle = findViewById(R.id.toolbarTitle);
         toolbarTitle.setText("Home");
-
+        floatingWindow = findViewById(R.id.floatingWindow);
         dashboardMessage = findViewById(R.id.dashboardMessage);
         locationTextView = findViewById(R.id.locationTextView);
-
-
+        roomsLayout = findViewById(R.id.roomsLayout);
+        noRoomsTextView = findViewById(R.id.noRoomsTextView);
         roomIcon = findViewById(R.id.roomIcon);
         scheduleIcon = findViewById(R.id.scheduleIcon);
         reportIcon = findViewById(R.id.reportIcon);
@@ -81,9 +94,10 @@ public class Students_Home extends AppCompatActivity {
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
 
 
-        String uid = getIntent().getStringExtra("uid");
+        uid = getIntent().getStringExtra("uid");
         fetchStudentDetailed(uid);
 
+        fetchRooms();
 
         Button logoutButton = findViewById(R.id.logoutButton);
         logoutButton.setOnClickListener(v -> {
@@ -137,7 +151,6 @@ public class Students_Home extends AppCompatActivity {
         }
     }
 
-
     private void fetchStudentDetails(String uid) {
         FirebaseFirestore.getInstance().collection("students")
                 .document(uid)
@@ -153,7 +166,6 @@ public class Students_Home extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> dashboardMessage.setText("Error fetching student details."));
     }
-
 
     private void fetchStudentDetailed(String uid) {
         FirebaseFirestore.getInstance().collection("students")
@@ -229,5 +241,119 @@ public class Students_Home extends AppCompatActivity {
         }
     }
 
+    private void fetchRooms() {
+        Log.d(TAG, "Fetching rooms...");
+        FirebaseFirestore.getInstance().collection("rooms")
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        Log.d(TAG, "Rooms fetched successfully. Count: " + queryDocumentSnapshots.size());
+                        noRoomsTextView.setVisibility(View.GONE);
+                        roomsLayout.removeAllViews();
 
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            String roomId = document.getId();
+                            String subjectCode = document.getString("subjectCode");
+                            String section = document.getString("section");
+
+                            if (subjectCode == null || section == null) {
+                                Log.w(TAG, "Room ID: " + roomId + " has missing 'subjectCode' or 'section'. Skipping.");
+                                continue; // Skip this room if data is missing
+                            }
+
+                            Log.d(TAG, "Room ID found: " + roomId + ", Subject Code: " + subjectCode + ", Section: " + section);
+                            checkStudentInRoom(roomId, subjectCode, section);
+                        }
+                    } else {
+                        noRoomsTextView.setVisibility(View.VISIBLE);
+                        Log.d(TAG, "No rooms available.");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error fetching rooms: " + e.getMessage());
+                });
+    }
+
+    private void checkStudentInRoom(String roomId, String subjectCode, String section) {
+        Log.d(TAG, "Checking if student is part of room: " + roomId);
+
+        FirebaseFirestore.getInstance()
+                .collection("rooms")
+                .document(roomId)
+                .collection("students")
+                .document(uid)
+                .get()
+                .addOnSuccessListener(studentDoc -> {
+                    if (studentDoc.exists()) {
+                        Log.d(TAG, "Student is part of room: " + roomId);
+                        createRoomButton(subjectCode, section, roomId);
+                    } else {
+                        Log.d(TAG, "Student not part of room: " + roomId);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking student in room: " + roomId, e);
+                });
+    }
+
+    private void createRoomButton(String subjectCode, String section, String roomId) {
+        Log.d(TAG, "Creating button for room: " + subjectCode + " - " + section);
+
+        Button roomButton = new Button(this);
+        roomButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        roomButton.setText(subjectCode + " - " + section);
+        roomButton.setTextSize(18);
+        roomButton.setTextColor(getResources().getColor(R.color.maroon, null));
+        roomButton.setBackgroundResource(R.drawable.button_border);
+
+        roomButton.setOnClickListener(v -> {
+            Toast.makeText(this, "Room clicked: " + subjectCode + " - " + section, Toast.LENGTH_SHORT).show();
+            showFloatingWindow(subjectCode, section, roomId);
+        });
+
+        runOnUiThread(() -> {
+            // Make the layout visible and add the button
+            if (roomsLayout.getVisibility() == View.GONE) {
+                roomsLayout.setVisibility(View.VISIBLE);
+            }
+            roomsLayout.addView(roomButton);
+            Log.d(TAG, "Button added to UI. Total children: " + roomsLayout.getChildCount());
+        });
+    }
+
+    private void showFloatingWindow(String roomCode, String section, String roomId) {
+        View blurBackground = findViewById(R.id.blurBackground);
+        floatingWindow.setVisibility(View.VISIBLE);  // Show the floating window
+        blurBackground.setVisibility(View.VISIBLE);  // Show the blur background
+        roomsLayout.setVisibility(View.GONE);
+
+        // Set room-related text
+        Button timeInButton = findViewById(R.id.timeInButton);
+        Button timeOutButton = findViewById(R.id.timeOutButton);
+        timeInButton.setText("Time - In");
+        timeOutButton.setText("Time - Out");
+
+        timeInButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Home.this, ScanQRTimeIn.class);
+            startActivityForResult(intent, QR_CODE_REQUEST_CODE);
+        });
+
+        timeOutButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Home.this, ScanQRTimeOut.class);
+            startActivityForResult(intent, QR_CODE_REQUEST_CODE);
+        });
+
+
+        // Close button for the floating window
+        ImageView closeFloatingWindow = findViewById(R.id.closeFloatingWindow);
+        closeFloatingWindow.setOnClickListener(v -> {
+            floatingWindow.setVisibility(View.GONE);  // Hide the floating window
+            blurBackground.setVisibility(View.GONE);  // Hide the blur background
+            roomsLayout.setVisibility(View.VISIBLE);  // Show the rooms layout again
+        });
+    }
 }

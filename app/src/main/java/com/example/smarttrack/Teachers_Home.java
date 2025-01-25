@@ -1,5 +1,9 @@
 package com.example.smarttrack;
 
+import static android.content.ContentValues.TAG;
+
+import static com.google.common.io.Resources.getResource;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -9,9 +13,15 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -22,6 +32,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,6 +52,8 @@ public class Teachers_Home extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private TextView navUsername, navIdNumber;
+    private TextView noRoomsTextView;
+    private ViewGroup roomsLayout;
 
 
     @Override
@@ -71,6 +84,12 @@ public class Teachers_Home extends AppCompatActivity {
         scheduleIcon.setClickable(true);
         reportIcon.setClickable(true);
 
+        roomsLayout = findViewById(R.id.roomsLayout);
+        noRoomsTextView = findViewById(R.id.noRoomsTextView);
+
+        TextView noRoomsTextView = findViewById(R.id.noRoomsTextView);
+        noRoomsTextView.setVisibility(View.VISIBLE);
+
 
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
@@ -78,6 +97,7 @@ public class Teachers_Home extends AppCompatActivity {
 
         String uid = getIntent().getStringExtra("uid");
         fetchStudentDetailed(uid);
+        fetchAndDisplayRooms(uid);
 
 
         Button logoutButton = findViewById(R.id.logoutButton);
@@ -213,5 +233,71 @@ public class Teachers_Home extends AppCompatActivity {
         } else {
             locationTextView.setText("Permission denied. Cannot fetch location.");
         }
+    }
+
+    private void fetchAndDisplayRooms(String uid) {
+        FirebaseFirestore.getInstance().collection("rooms")
+                .whereEqualTo("teacherId", uid)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        noRoomsTextView.setVisibility(View.GONE);
+                        roomsLayout.removeAllViews();
+
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            String subjectCode = document.getString("subjectCode");
+                            String section = document.getString("section");
+                            String roomCode = document.getString("roomCode");
+
+                            if (subjectCode != null && section != null) {
+                                addRoomButton(subjectCode, section, roomCode, uid);
+                            }
+                        }
+                    } else {
+                        noRoomsTextView.setVisibility(View.VISIBLE);
+                        Log.d(TAG, "No rooms available for teacherId: " + uid);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error fetching rooms", e);
+                });
+    }
+
+    private void addRoomButton(String subjectCode, String section, String roomCode, String uid) {
+        String displayText = subjectCode + " - " + section;
+
+        Button roomButton = new Button(this);
+        roomButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        roomButton.setText(subjectCode + " - " + section);
+        roomButton.setTextSize(18);
+        roomButton.setTextColor(getResources().getColor(R.color.maroon, null));
+        roomButton.setBackgroundResource(R.drawable.button_border);
+        roomButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Teachers_Home.this, Teachers_Room.class);
+            intent.putExtra("roomCode", roomCode);
+            intent.putExtra("uid", uid);
+            startActivity(intent);
+        });
+
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        layoutParams.setMargins(0, 10, 0, 10);
+        roomButton.setLayoutParams(layoutParams);
+
+        roomsLayout.addView(roomButton);
+        roomsLayout.setVisibility(View.VISIBLE);
+    }
+
+    private void navigateTo(Class<?> destination, String uid) {
+        Intent intent = new Intent(Teachers_Home.this, destination);
+        intent.putExtra("uid", uid);
+        startActivity(intent);
+        overridePendingTransition(0, 0);
     }
 }

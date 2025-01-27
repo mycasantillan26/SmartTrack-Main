@@ -35,6 +35,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -54,6 +56,7 @@ public class Teachers_Home extends AppCompatActivity {
     private TextView navUsername, navIdNumber;
     private TextView noRoomsTextView;
     private ViewGroup roomsLayout;
+    private View floatingWindow;
 
 
     @Override
@@ -94,6 +97,10 @@ public class Teachers_Home extends AppCompatActivity {
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
 
+        floatingWindow = findViewById(R.id.floatingWindow);
+
+        Button timeOutButton = findViewById(R.id.timeOutButton);
+        timeOutButton.setVisibility(View.GONE);
 
         String uid = getIntent().getStringExtra("uid");
         fetchStudentDetailed(uid);
@@ -142,7 +149,6 @@ public class Teachers_Home extends AppCompatActivity {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         requestLocationPermission();
     }
-
 
     private void fetchStudentDetails(String uid) {
         FirebaseFirestore.getInstance().collection("teachers")
@@ -238,6 +244,7 @@ public class Teachers_Home extends AppCompatActivity {
     private void fetchAndDisplayRooms(String uid) {
         FirebaseFirestore.getInstance().collection("rooms")
                 .whereEqualTo("teacherId", uid)
+                .whereEqualTo("dateScheduled", getCurrentDate())
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
@@ -264,6 +271,11 @@ public class Teachers_Home extends AppCompatActivity {
                 });
     }
 
+    private String getCurrentDate() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        return dateFormat.format(new Date());
+    }
+
     private void addRoomButton(String subjectCode, String section, String roomCode, String uid) {
         String displayText = subjectCode + " - " + section;
 
@@ -283,6 +295,10 @@ public class Teachers_Home extends AppCompatActivity {
             startActivity(intent);
         });
 
+        roomButton.setOnClickListener(v -> {
+            showFloatingWindow(roomCode, subjectCode, section); // Show floating window
+        });
+
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -299,5 +315,62 @@ public class Teachers_Home extends AppCompatActivity {
         intent.putExtra("uid", uid);
         startActivity(intent);
         overridePendingTransition(0, 0);
+    }
+
+    private void showFloatingWindow(String roomCode, String subjectCode, String section) {
+        View blurBackground = findViewById(R.id.blurBackground);
+        floatingWindow.setVisibility(View.VISIBLE);  // Show the floating window
+        blurBackground.setVisibility(View.VISIBLE);  // Show the blur background
+        roomsLayout.setVisibility(View.GONE);  // Hide the rooms layout
+
+        // Initialize the buttons
+        Button AttendanceCodeButton = findViewById(R.id.AttendanceCodeButton);
+        Button AttendanceViewButton = findViewById(R.id.AttendanceViewButton);
+
+        // Set button texts
+        AttendanceCodeButton.setText("Attendance Code");
+        AttendanceViewButton.setText("Attendance View");
+
+        // Set onClickListeners for the buttons
+        AttendanceCodeButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Teachers_Home.this, GenerateCode.class);
+            intent.putExtra("roomCode", roomCode);
+            intent.putExtra("subjectSection", subjectCode + " - " + section);
+            startActivity(intent);
+        });
+
+        AttendanceViewButton.setOnClickListener(v -> {
+            if (roomCode == null || roomCode.isEmpty()) {
+                Toast.makeText(this, "Room Code is missing. Cannot view students.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            FirebaseFirestore.getInstance().collection("rooms")
+                    .whereEqualTo("roomCode", roomCode)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        if (!queryDocumentSnapshots.isEmpty()) {
+                            String roomId = queryDocumentSnapshots.getDocuments().get(0).getId();
+                            Intent intent = new Intent(Teachers_Home.this, ViewStudents.class);
+                            intent.putExtra("roomId", roomId);
+                            intent.putExtra("section", section);
+                            intent.putExtra("subjectCode", subjectCode);
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(this, "No room found for the provided code.", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Error fetching room ID: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+        });
+
+        // Close button for the floating window
+        ImageView closeFloatingWindow = findViewById(R.id.closeFloatingWindow);
+        closeFloatingWindow.setOnClickListener(v -> {
+            floatingWindow.setVisibility(View.GONE);  // Hide the floating window
+            blurBackground.setVisibility(View.GONE);  // Hide the blur background
+            roomsLayout.setVisibility(View.VISIBLE);  // Show the rooms layout again
+        });
     }
 }

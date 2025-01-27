@@ -270,6 +270,27 @@
                 android:contentDescription="Back"
                 android:src="@drawable/back" />
 
+            <Button
+                android:id="@+id/AttendanceCodeButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Attendance Code"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="50dp"
+                android:background="@drawable/button_gold_border" />
+
+            <Button
+                android:id="@+id/AttendanceViewButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Attendance View"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/button_gold_border" />
+
+
             <!-- Buttons for "Generate Code" and "View Students" -->
             <Button
                 android:id="@+id/timeInButton"
@@ -279,7 +300,8 @@
                 android:background="@drawable/button_gold_border"
                 android:text="Time - In"
                 android:textColor="#FFFFFF"
-                android:textSize="18sp" />
+                android:textSize="18sp"
+                android:visibility="gone" />
 
             <Button
                 android:id="@+id/timeOutButton"
@@ -289,7 +311,8 @@
                 android:background="@drawable/button_gold_border"
                 android:text="Time - Out"
                 android:textColor="#FFFFFF"
-                android:textSize="18sp" />
+                android:textSize="18sp"
+                tools:visibility="gone" />
 
         </LinearLayout>
     </FrameLayout>

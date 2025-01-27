@@ -306,7 +306,8 @@ public class Students_Home extends AppCompatActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
         roomButton.setText(subjectCode + " - " + section);
-        roomButton.setTextSize(18);
+        roomButton.setTextSize(25);
+        roomButton.setPadding(20, 20, 20, 20);
         roomButton.setTextColor(getResources().getColor(R.color.maroon, null));
         roomButton.setBackgroundResource(R.drawable.button_border);
 

@@ -158,6 +158,15 @@
             android:name=".FaceRecognition"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".DailyAttendanceActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".MonthlyAttendanceActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+
 
     </application>
 </manifest>

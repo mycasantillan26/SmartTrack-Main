@@ -107,11 +107,11 @@
             android:id="@+id/roomsLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:layout_below="@id/separator"
             android:layout_marginTop="16dp"
-            android:visibility="gone"
-        android:padding="16dp" />
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone" />
 
         <!-- No Rooms Available Message -->
         <TextView
@@ -306,21 +306,27 @@
                 android:id="@+id/generateCodeButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Generate Code"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF"
                 android:layout_marginTop="50dp"
-                android:background="@drawable/button_gold_border" />
+                android:background="@drawable/button_gold_border"
+                android:text="Generate Code"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:visibility="visible" />
 
             <Button
                 android:id="@+id/viewStudentsButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="View Students"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF"
                 android:layout_marginTop="10dp"
-                android:background="@drawable/button_gold_border" />
+                android:background="@drawable/button_gold_border"
+                android:text="View Students"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:visibility="visible" />
+
+
+            <!-- Buttons for "Generate Code" and "View Students" -->
+
 
         </LinearLayout>
     </FrameLayout>

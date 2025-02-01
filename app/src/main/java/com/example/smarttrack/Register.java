@@ -173,7 +173,7 @@ public class Register extends AppCompatActivity {
             return false;
         }
 
-        if (!email.endsWith("@cit.edu")) {
+        if (!email.endsWith("@cit.edu") && !email.endsWith("@gmail.com")) {
             Toast.makeText(this, "Email must be @cit.edu domain!", Toast.LENGTH_SHORT).show();
             return false;
         }
@@ -293,7 +293,7 @@ public class Register extends AppCompatActivity {
     }
 
     private void navigateToFaceRecognition(String documentId) {
-        Intent intent = new Intent(this, FaceRecognition.class);
+        Intent intent = new Intent(this, FaceRegister.class);
         intent.putExtra("documentId", documentId); // Pass the document ID
         startActivity(intent);
         finish();

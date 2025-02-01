@@ -4,33 +4,38 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ListView;
 import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Spinner;
-import android.widget.AdapterView;
+import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.Timestamp;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-import java.util.TimeZone;
 
 public class DailyAttendanceActivity extends AppCompatActivity {
+
+    private static final String TAG = "DailyAttendance";
+
     private ListView dailyAttendanceList;
-    private Spinner roomSpinner;
+    private TextView emptyMessage;
+
     private FirebaseFirestore db;
     private ArrayList<String> attendanceRecords;
     private ArrayList<String> roomIds;
     private ArrayList<String> roomNames;
-    private ArrayAdapter<String> listViewAdapter;  // Renamed from attendanceAdapter
-    private ArrayAdapter<String> spinnerAdapter;   // Renamed from roomAdapter
+    private ArrayAdapter<String> listViewAdapter;
+
     private String uid;
 
     @Override
@@ -38,12 +43,22 @@ public class DailyAttendanceActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_daily_attendance);
 
-        // Get UID from intent
+        // Retrieve UID from Intent first
         uid = getIntent().getStringExtra("uid");
+
+        // Fallback to FirebaseAuth UID if not provided in the intent
         if (uid == null) {
-            Log.e("DailyAttendance", "No UID provided");
+            uid = FirebaseAuth.getInstance().getUid();
+        }
+
+        // If still null, log error and exit
+        if (uid == null) {
+            Log.e(TAG, "No UID available. Cannot proceed.");
+            Toast.makeText(this, "Error: No user ID found. Please log in again.", Toast.LENGTH_SHORT).show();
             finish();
             return;
+        } else {
+            Log.d(TAG, "UID successfully retrieved: " + uid);
         }
 
         // Initialize Firestore
@@ -51,41 +66,34 @@ public class DailyAttendanceActivity extends AppCompatActivity {
 
         // Initialize views
         dailyAttendanceList = findViewById(R.id.dailyAttendanceList);
-        roomSpinner = findViewById(R.id.roomSpinner);
+        emptyMessage = findViewById(R.id.emptyMessage);
 
         // Initialize lists
         attendanceRecords = new ArrayList<>();
         roomIds = new ArrayList<>();
         roomNames = new ArrayList<>();
 
-        // Setup adapters
+        // Set up the ListView adapter
         setupListViewAdapter();
-        setupSpinnerAdapter();
 
         // Load rooms for the student
         loadStudentRooms();
-
-        // Setup room selection listener
-        roomSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedRoomId = roomIds.get(position);
-                fetchTodayAttendance(selectedRoomId, uid);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // Do nothing
-            }
-        });
     }
 
     private void setupListViewAdapter() {
-        listViewAdapter = new ArrayAdapter<String>(this, R.layout.list_item_attendance, attendanceRecords) {
+        listViewAdapter = new ArrayAdapter<String>(
+                this,
+                R.layout.list_item_attendance,
+                attendanceRecords
+        ) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 if (convertView == null) {
-                    convertView = getLayoutInflater().inflate(R.layout.list_item_attendance, parent, false);
+                    convertView = getLayoutInflater().inflate(
+                            R.layout.list_item_attendance,
+                            parent,
+                            false
+                    );
                 }
 
                 String record = getItem(position);
@@ -99,37 +107,75 @@ public class DailyAttendanceActivity extends AppCompatActivity {
                         timeDetailsText.setText(parts[1].trim());
                     }
                 }
-
                 return convertView;
             }
         };
         dailyAttendanceList.setAdapter(listViewAdapter);
     }
 
-    private void setupSpinnerAdapter() {
-        spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, roomNames);
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        roomSpinner.setAdapter(spinnerAdapter);
-    }
-
     private void loadStudentRooms() {
-        db.collection("students")
-                .document(uid)
-                .collection("enrolledRooms")
+        // Query all rooms to find the ones where the student is enrolled
+        db.collection("rooms")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     roomIds.clear();
                     roomNames.clear();
 
+                    if (queryDocumentSnapshots.isEmpty()) {
+                        Log.d(TAG, "No rooms found in the database.");
+                        showNoRecordsMessage("No rooms available.");
+                        return;
+                    }
+
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        String roomId = document.getString("roomId");
-                        if (roomId != null) {
-                            loadRoomDetails(roomId);
-                        }
+                        String roomId = document.getId(); // Room ID
+                        checkStudentEnrollment(roomId, document); // Check if the student is enrolled
                     }
                 })
-                .addOnFailureListener(e -> Log.e("DailyAttendance", "Error loading student rooms", e));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error fetching rooms.", e);
+                    showNoRecordsMessage("Error loading rooms.");
+                });
     }
+
+    private void checkStudentEnrollment(String roomId, QueryDocumentSnapshot roomDocument) {
+        // Check if the student is enrolled in this room
+        db.collection("rooms")
+                .document(roomId)
+                .collection("students")
+                .document(uid)
+                .get()
+                .addOnSuccessListener(studentDoc -> {
+                    if (studentDoc.exists()) {
+                        Log.d(TAG, "Student is enrolled in room: " + roomId);
+
+                        // Get room details
+                        String subjectName = roomDocument.getString("subjectName");
+                        String section = roomDocument.getString("section");
+
+                        if (subjectName == null) subjectName = "Unknown Subject";
+                        if (section == null) section = "Unknown Section";
+
+                        String roomName = subjectName + " (" + section + ")";
+                        roomIds.add(roomId);
+                        roomNames.add(roomName);
+
+                        // Fetch attendance for this room (only fetch for the first room as an example)
+                        if (roomIds.size() == 1) {
+                            fetchTodayAttendance(roomId, uid);
+                        }
+
+                        listViewAdapter.notifyDataSetChanged(); // Update UI
+                    } else {
+                        Log.d(TAG, "Student is not enrolled in room: " + roomId);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking student enrollment in room: " + roomId, e);
+                });
+    }
+
+
 
     private void loadRoomDetails(String roomId) {
         db.collection("rooms")
@@ -139,51 +185,30 @@ public class DailyAttendanceActivity extends AppCompatActivity {
                     if (documentSnapshot.exists()) {
                         String subjectName = documentSnapshot.getString("subjectName");
                         String section = documentSnapshot.getString("section");
-                        String roomName = subjectName + " (" + section + ")";
+                        if (subjectName == null) subjectName = "Unknown Subject";
+                        if (section == null) section = "Unknown Section";
 
+                        String roomName = subjectName + " (" + section + ")";
                         roomIds.add(roomId);
                         roomNames.add(roomName);
-                        spinnerAdapter.notifyDataSetChanged();
 
-                        // Load attendance for first room if this is the first room loaded
                         if (roomIds.size() == 1) {
                             fetchTodayAttendance(roomId, uid);
                         }
+
+                    } else {
+                        Log.d(TAG, "Room document " + roomId + " does not exist.");
                     }
                 })
-                .addOnFailureListener(e -> Log.e("DailyAttendance", "Error loading room details", e));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading room details", e);
+                });
     }
 
     private void fetchTodayAttendance(String roomId, String studentUid) {
-        db.collection("rooms").document(roomId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        String subjectName = documentSnapshot.contains("subjectName") ?
-                                documentSnapshot.getString("subjectName") : "Unknown Subject";
-                        String section = documentSnapshot.contains("section") ?
-                                documentSnapshot.getString("section") : "Unknown Section";
-                        String roomName = subjectName + " (" + section + ")";
+        Log.d(TAG, "Fetching attendance for roomId=" + roomId + ", uid=" + studentUid);
 
-                        ArrayList<String> schedule = (ArrayList<String>) documentSnapshot.get("schedule");
-                        SimpleDateFormat dayFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
-                        String today = dayFormat.format(new Date());
-
-                        if (schedule != null && schedule.contains(today)) {
-                            fetchAttendanceRecords(roomId, studentUid, roomName);
-                        } else {
-                            attendanceRecords.clear();
-                            listViewAdapter.notifyDataSetChanged();
-                            showNoClassMessage();
-                        }
-                    }
-                })
-                .addOnFailureListener(e -> Log.e("DailyAttendance", "Error fetching room details", e));
-    }
-
-    private void fetchAttendanceRecords(String roomId, String studentUid, String roomName) {
         Calendar calendar = Calendar.getInstance();
-        calendar.setTimeZone(TimeZone.getTimeZone("UTC"));
         calendar.set(Calendar.HOUR_OF_DAY, 0);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
@@ -191,6 +216,8 @@ public class DailyAttendanceActivity extends AppCompatActivity {
 
         calendar.add(Calendar.DAY_OF_MONTH, 1);
         Date startOfNextDay = calendar.getTime();
+
+        Log.d(TAG, "Querying attendance from " + startOfDay + " to " + startOfNextDay);
 
         db.collection("rooms")
                 .document(roomId)
@@ -216,34 +243,34 @@ public class DailyAttendanceActivity extends AppCompatActivity {
                             } else {
                                 timeDetails += ", Time Out: N/A";
                             }
-
-                            String record = "Room Name: " + roomName + " | " + timeDetails;
+                            String record = "Room Name: " + roomNames.get(roomIds.indexOf(roomId)) + " | " + timeDetails;
                             attendanceRecords.add(record);
+                            Log.d(TAG, "Attendance record added: " + record);
                         }
                     }
 
                     listViewAdapter.notifyDataSetChanged();
 
                     if (attendanceRecords.isEmpty()) {
-                        showNoRecordsMessage();
+                        showNoRecordsMessage("No attendance records for today.");
+                    } else {
+                        showListView();
                     }
                 })
-                .addOnFailureListener(e -> Log.e("DailyAttendance", "Error fetching attendance", e));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error fetching attendance", e);
+                    showNoRecordsMessage("Error fetching attendance.");
+                });
     }
 
-    private void showNoClassMessage() {
-        findViewById(R.id.dailyAttendanceList).setVisibility(View.GONE);
-        TextView noClassText = new TextView(this);
-        noClassText.setText("No class scheduled for today");
-        noClassText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        ((ViewGroup) findViewById(R.id.dailyAttendanceList).getParent()).addView(noClassText);
+    private void showNoRecordsMessage(String message) {
+        dailyAttendanceList.setVisibility(View.GONE);
+        emptyMessage.setVisibility(View.VISIBLE);
+        emptyMessage.setText(message);
     }
 
-    private void showNoRecordsMessage() {
-        findViewById(R.id.dailyAttendanceList).setVisibility(View.GONE);
-        TextView noRecordsText = new TextView(this);
-        noRecordsText.setText("No attendance records for today");
-        noRecordsText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        ((ViewGroup) findViewById(R.id.dailyAttendanceList).getParent()).addView(noRecordsText);
+    private void showListView() {
+        emptyMessage.setVisibility(View.GONE);
+        dailyAttendanceList.setVisibility(View.VISIBLE);
     }
 }

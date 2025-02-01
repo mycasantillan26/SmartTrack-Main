@@ -16,10 +16,25 @@
         android:textStyle="bold"
         android:textColor="@android:color/black"
         android:gravity="center"
+        android:layout_marginBottom="8dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginBottom="16dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- TextView to show "No class" or "No attendance" messages -->
+    <TextView
+        android:id="@+id/emptyMessage"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="16sp"
+        android:textColor="@android:color/black"
+        android:gravity="center"
+        android:visibility="gone"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/dailyAttendanceTitle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- ListView -->
     <ListView
@@ -30,15 +45,9 @@
         android:dividerHeight="1dp"
         android:padding="8dp"
         android:clipToPadding="true"
-        app:layout_constraintTop_toBottomOf="@id/dailyAttendanceTitle"
+        app:layout_constraintTop_toBottomOf="@id/emptyMessage"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_margin="8dp" />
+        app:layout_constraintBottom_toBottomOf="parent" />
 
-    <Spinner
-        android:id="@+id/roomSpinner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp" />
 </androidx.constraintlayout.widget.ConstraintLayout>

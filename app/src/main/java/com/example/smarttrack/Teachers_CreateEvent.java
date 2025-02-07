@@ -8,7 +8,6 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -24,7 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Arrays;
+
 
 public class Teachers_CreateEvent extends AppCompatActivity {
 

@@ -10,16 +10,12 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
-import android.widget.CalendarView;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.prolificinteractive.materialcalendarview.MaterialCalendarView;
 import com.prolificinteractive.materialcalendarview.CalendarDay;
-import com.prolificinteractive.materialcalendarview.DayViewDecorator;
-import com.prolificinteractive.materialcalendarview.DayViewFacade;
-import com.prolificinteractive.materialcalendarview.spans.DotSpan;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -36,13 +32,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.prolificinteractive.materialcalendarview.CalendarDay;
+
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Calendar;
-import java.util.Date;
 
 public class Students_Calendar extends AppCompatActivity {
 

@@ -2,14 +2,16 @@ package com.example.smarttrack;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.Objects;
 
 public class InputCodeActivity extends AppCompatActivity {
 
@@ -41,15 +43,16 @@ public class InputCodeActivity extends AppCompatActivity {
                 .whereEqualTo("roomCode", roomCode)
                 .get()
                 .addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                    if (task.isSuccessful() && !Objects.requireNonNull(task.getResult()).isEmpty()) {
                         // Extract room details from the first matching document
                         DocumentSnapshot document = task.getResult().getDocuments().get(0);
+                        String roomId = document.getId(); // Use document ID as roomId
                         String subjectCode = document.getString("subjectCode");
                         String section = document.getString("section");
-                        String roomId = document.getId(); // Use document ID as roomId
                         String teacherId = document.getString("teacherId");
+                        int maxStudents = Integer.parseInt(Objects.requireNonNull(document.getString("numberOfStudents")));
 
-                        saveToSection(subjectCode, section, roomId, teacherId);
+                        checkRoomCapacityAndSaveStudent(roomId, subjectCode, section, teacherId, maxStudents);
                     } else {
                         Toast.makeText(InputCodeActivity.this, "Invalid room code. Please try again.", Toast.LENGTH_SHORT).show();
                     }
@@ -59,18 +62,37 @@ public class InputCodeActivity extends AppCompatActivity {
                 });
     }
 
-    private void saveToSection(String subjectCode, String section, String roomId, String teacherId) {
-        String studentId = FirebaseAuth.getInstance().getUid();
-        if (studentId != null) {
-            String sectionName = subjectCode + "-" + section;
+    private void checkRoomCapacityAndSaveStudent(String roomId, String subjectCode, String section, String teacherId, int maxStudents) {
+        firestore.collection("rooms")
+                .document(roomId)
+                .collection("students")
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        int currentStudents = Objects.requireNonNull(task.getResult()).size();
 
+                        if (currentStudents < maxStudents) {
+                            saveStudentToRoom(roomId, subjectCode, section, teacherId);
+                        } else {
+                            Toast.makeText(InputCodeActivity.this, "Room is full. Maximum capacity reached.", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(InputCodeActivity.this, "Error checking room capacity: " + Objects.requireNonNull(task.getException()).getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void saveStudentToRoom(String roomId, String subjectCode, String section, String teacherId) {
+        String studentId = FirebaseAuth.getInstance().getUid();
+
+        if (studentId != null) {
             // Add the student data into the 'students' subcollection
-            firestore.collection("sections").document(sectionName)
+            firestore.collection("rooms").document(roomId)
                     .collection("students").document(studentId)
                     .set(new StudentModel(studentId, roomId, subjectCode, section, teacherId))
                     .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(InputCodeActivity.this, "Successfully joined the section.", Toast.LENGTH_SHORT).show();
-                        navigateToStudentsRoom(sectionName, teacherId);
+                        Toast.makeText(InputCodeActivity.this, "Successfully joined the room.", Toast.LENGTH_SHORT).show();
+                        navigateToStudentsRoom(roomId, teacherId, section, subjectCode, studentId);
                     })
                     .addOnFailureListener(e -> {
                         Toast.makeText(InputCodeActivity.this, "Error saving student data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -80,11 +102,18 @@ public class InputCodeActivity extends AppCompatActivity {
         }
     }
 
-    private void navigateToStudentsRoom(String sectionName, String teacherId) {
+
+    private void navigateToStudentsRoom(String roomId, String teacherId, String section, String subjectCode, String studentId) {
+        Log.d("InputCodeActivity", "Navigating to Students_Room with roomId: " + roomId);
+
         Intent intent = new Intent(InputCodeActivity.this, Students_Room.class);
-        intent.putExtra("sectionName", sectionName);
+        intent.putExtra("roomId", roomId);
         intent.putExtra("teacherId", teacherId);
+        intent.putExtra("section", section);
+        intent.putExtra("subjectCode", subjectCode);
+        intent.putExtra("studentId", studentId);
         startActivity(intent);
         finish();
     }
+
 }

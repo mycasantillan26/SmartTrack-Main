@@ -9,30 +9,41 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import android.view.Gravity;
+import java.util.Map;
+
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.material.navigation.NavigationView;
-
-
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 public class Students_Home extends AppCompatActivity {
+    private static final String TAG = "Students_Home";
+    private static final int QR_CODE_REQUEST_CODE = 1001;
 
     private ImageView roomIcon;
     private ImageView reportIcon;
@@ -45,134 +56,78 @@ public class Students_Home extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private TextView navUsername, navIdNumber;
+    private TextView noRoomsTextView;
+    private LinearLayout roomsLayout;
+    private LinearLayout floatingWindow;
+    private String uid;
+    private Button faceRegisterButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
+        // Setup toolbar and layout elements
+        setupToolbarAndUI();
+
+        // Get user ID from intent
+        uid = getIntent().getStringExtra("uid");
+        fetchStudentDetails(uid);
+        fetchStudentDetailed(uid);
+
+        // Fetch rooms and initialize location tracking
+        fetchRoomsForToday();
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        requestLocationPermission();
+    }
+
+    private void setupToolbarAndUI() {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
+
         TextView toolbarTitle = findViewById(R.id.toolbarTitle);
         toolbarTitle.setText("Home");
-
+        floatingWindow = findViewById(R.id.floatingWindow);
         dashboardMessage = findViewById(R.id.dashboardMessage);
         locationTextView = findViewById(R.id.locationTextView);
-
-
+        roomsLayout = findViewById(R.id.roomsLayout);
+        noRoomsTextView = findViewById(R.id.noRoomsTextView);
         roomIcon = findViewById(R.id.roomIcon);
         scheduleIcon = findViewById(R.id.scheduleIcon);
         reportIcon = findViewById(R.id.reportIcon);
+        faceRegisterButton = findViewById(R.id.faceRegisterButton);
 
         drawerLayout = findViewById(R.id.drawerLayout);
         navigationView = findViewById(R.id.navigationView);
         navUsername = navigationView.findViewById(R.id.navUsername);
         navIdNumber = navigationView.findViewById(R.id.navIdNumber);
 
-
-
-        roomIcon.setClickable(true);
-        scheduleIcon.setClickable(true);
-        reportIcon.setClickable(true);
-
-        // Fetch UID from Intent
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
 
-
-        String uid = getIntent().getStringExtra("uid");
-        fetchStudentDetailed(uid);
-
-
         Button logoutButton = findViewById(R.id.logoutButton);
-        logoutButton.setOnClickListener(v -> {
-            FirebaseAuth.getInstance().signOut();
-            Intent intent = new Intent(Students_Home.this, Login.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        });
+        logoutButton.setOnClickListener(v -> logout());
 
+        roomIcon.setOnClickListener(v -> startActivity(new Intent(this, Students_Room.class).putExtra("uid", uid)));
+        scheduleIcon.setOnClickListener(v -> startActivity(new Intent(this, Students_Calendar.class).putExtra("uid", uid)));
+        reportIcon.setOnClickListener(v -> startActivity(new Intent(this, Students_Report.class).putExtra("uid", uid)));
 
-        roomIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Room");
-            Intent intent = new Intent(Students_Home.this, Students_Room.class);
+        faceRegisterButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Home.this, FaceRegister.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
-            overridePendingTransition(0, 0);
         });
-
-        scheduleIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Calendar");
-            Intent intent = new Intent(Students_Home.this, Students_Calendar.class);
-            intent.putExtra("uid", uid);
-            startActivity(intent);
-            overridePendingTransition(0, 0);
-        });
-
-        reportIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Home");
-            Intent intent = new Intent(Students_Home.this, Students_Report.class);
-            intent.putExtra("uid", uid);
-            startActivity(intent);
-            overridePendingTransition(0, 0);
-        });
-
-        fetchStudentDetails(uid);
-
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        requestLocationPermission();
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        // Check if the user is logged in
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            // Redirect to login page if no user is logged in
-            Intent intent = new Intent(Students_Home.this, Login.class);
-            startActivity(intent);
-            finish();
-        }
+    private void logout() {
+        FirebaseAuth.getInstance().signOut();
+        Intent intent = new Intent(Students_Home.this, Login.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
-
-    private void fetchStudentDetails(String uid) {
-        FirebaseFirestore.getInstance().collection("students")
-                .document(uid)
-                .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists()) {
-                        String firstName = document.getString("firstName");
-                        String lastName = document.getString("lastName");
-                        dashboardMessage.setText("Hi, Student " + firstName + " " + lastName + "!");
-                    } else {
-                        dashboardMessage.setText("Student details not found.");
-                    }
-                })
-                .addOnFailureListener(e -> dashboardMessage.setText("Error fetching student details."));
-    }
-
-
-    private void fetchStudentDetailed(String uid) {
-        FirebaseFirestore.getInstance().collection("students")
-                .document(uid)
-                .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists()) {
-                        String firstName = document.getString("firstName");
-                        String lastName = document.getString("lastName");
-                        String idNumber = document.getString("idNumber");
-                        navUsername.setText(firstName + " " + lastName);
-                        navIdNumber.setText(idNumber);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    navUsername.setText("Error fetching details");
-                    navIdNumber.setText("");
-                });
-    }
     private void requestLocationPermission() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
@@ -188,16 +143,13 @@ public class Students_Home extends AppCompatActivity {
                 @Override
                 public void onLocationChanged(@NonNull Location location) {
                     if (!locationDisplayed) {
-                        double latitude = location.getLatitude();
-                        double longitude = location.getLongitude();
-                        getAddressFromLocation(latitude, longitude);
+                        getAddressFromLocation(location.getLatitude(), location.getLongitude());
                         locationDisplayed = true;
                     }
                 }
-
-                @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
-                @Override public void onProviderEnabled(String provider) {}
-                @Override public void onProviderDisabled(String provider) {}
+                public void onStatusChanged(String provider, int status, Bundle extras) {}
+                public void onProviderEnabled(String provider) {}
+                public void onProviderDisabled(String provider) {}
             });
         }
     }
@@ -206,28 +158,171 @@ public class Students_Home extends AppCompatActivity {
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
         try {
             List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
-            if (!addresses.isEmpty()) {
-                Address address = addresses.get(0);
-                String fullAddress = address.getAddressLine(0);
-                locationTextView.setText("Location: " + fullAddress);
-            } else {
-                locationTextView.setText("Unable to fetch address.");
-            }
+            locationTextView.setText(addresses.isEmpty() ? "Unable to fetch address." : "Location: " + addresses.get(0).getAddressLine(0));
         } catch (IOException e) {
-            e.printStackTrace();
             locationTextView.setText("Error fetching address.");
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 1 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            getCurrentLocation();
-        } else {
-            locationTextView.setText("Permission denied. Cannot fetch location.");
-        }
+    private void fetchStudentDetails(String uid) {
+        FirebaseFirestore.getInstance().collection("students").document(uid).get()
+                .addOnSuccessListener(document -> {
+                    if (document.exists()) {
+                        String firstName = document.getString("firstName");
+                        String lastName = document.getString("lastName");
+                        dashboardMessage.setText("Hi, Student " + firstName + " " + lastName + "!");
+                    } else {
+                        dashboardMessage.setText("Student details not found.");
+                    }
+                })
+                .addOnFailureListener(e -> dashboardMessage.setText("Error fetching student details."));
     }
 
+    private void fetchStudentDetailed(String uid) {
+        FirebaseFirestore.getInstance().collection("students").document(uid).get()
+                .addOnSuccessListener(document -> {
+                    if (document.exists()) {
+                        navUsername.setText(document.getString("firstName") + " " + document.getString("lastName"));
+                        navIdNumber.setText(document.getString("idNumber"));
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    navUsername.setText("Error fetching details");
+                    navIdNumber.setText("");
+                });
+    }
+
+    private void fetchRoomsForToday() {
+        String today = getTodayDayName(); // Get today's name (e.g., "Tuesday")
+
+        FirebaseFirestore.getInstance().collection("rooms").get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        noRoomsTextView.setVisibility(View.GONE);
+                        roomsLayout.removeAllViews();
+
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            String roomId = document.getId();
+                            String subjectCode = document.getString("subjectCode");
+                            String section = document.getString("section");
+                            List<String> schedule = (List<String>) document.get("schedule"); // Get schedule array
+
+                            // Only display rooms that are scheduled for today
+                            if (schedule != null && schedule.contains(today) && subjectCode != null && section != null) {
+                                checkStudentInRoom(roomId, subjectCode, section);
+                            }
+                        }
+                    } else {
+                        noRoomsTextView.setVisibility(View.VISIBLE);
+                    }
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                );
+    }
+
+    // Get today's day name (e.g., "Monday", "Tuesday", etc.)
+    private String getTodayDayName() {
+        Calendar calendar = Calendar.getInstance();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
+        return dateFormat.format(calendar.getTime());
+    }
+
+    private void checkStudentInRoom(String roomId, String subjectCode, String section) {
+        FirebaseFirestore.getInstance().collection("rooms").document(roomId)
+                .collection("students").document(uid).get()
+                .addOnSuccessListener(studentDoc -> {
+                    if (studentDoc.exists()) {
+                        createRoomButton(subjectCode, section, roomId);
+                    }
+                })
+                .addOnFailureListener(e -> Log.e(TAG, "Error checking student in room: " + roomId, e));
+    }
+
+    private void createRoomButton(String subjectCode, String section, String roomId) {
+        Button roomButton = new Button(this);
+        roomButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        roomButton.setText(subjectCode + " - " + section);
+        roomButton.setTextSize(18);
+        roomButton.setTextColor(getResources().getColor(R.color.maroon, null));
+        roomButton.setBackgroundResource(R.drawable.button_border);
+
+        roomButton.setOnClickListener(v -> showFloatingWindow(roomId));
+        runOnUiThread(() -> roomsLayout.addView(roomButton));
+    }
+
+    private void showFloatingWindow(String roomId) {
+        View blurBackground = findViewById(R.id.blurBackground);
+        floatingWindow.setVisibility(View.VISIBLE);
+        blurBackground.setVisibility(View.VISIBLE);
+        roomsLayout.setVisibility(View.GONE);
+
+        Button timeInButton = findViewById(R.id.timeInButton);
+        Button timeOutButton = findViewById(R.id.timeOutButton);
+
+        timeInButton.setVisibility(View.GONE);
+        timeOutButton.setVisibility(View.GONE);
+
+        checkAttendanceStatus(roomId, timeInButton, timeOutButton);
+
+        timeInButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Home.this, ScanQRTimeIn.class);
+            intent.putExtra("roomId", roomId);
+            startActivity(intent);
+            floatingWindow.setVisibility(View.GONE);
+            blurBackground.setVisibility(View.GONE);
+        });
+
+        timeOutButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Home.this, ScanQRTimeOut.class);
+            intent.putExtra("roomId", roomId);
+            startActivity(intent);
+            floatingWindow.setVisibility(View.GONE);
+            blurBackground.setVisibility(View.GONE);
+        });
+
+        findViewById(R.id.closeFloatingWindow).setOnClickListener(v -> {
+            floatingWindow.setVisibility(View.GONE);
+            blurBackground.setVisibility(View.GONE);
+            roomsLayout.setVisibility(View.VISIBLE);
+        });
+    }
+
+    private void checkAttendanceStatus(String roomId, Button timeInButton, Button timeOutButton) {
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        db.collection("rooms").document(roomId)
+                .collection("students").document(uid)
+                .collection("attendance")
+                .orderBy("timeIn", Query.Direction.DESCENDING)  // ✅ Get latest time-in first
+                .limit(1)  // ✅ Only check the latest record
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        // ✅ Fetch latest attendance document
+                        DocumentSnapshot documentSnapshot = queryDocumentSnapshots.getDocuments().get(0);
+
+                        boolean hasTimeIn = documentSnapshot.contains("timeIn");
+                        boolean hasTimeOut = documentSnapshot.contains("timeOut");
+
+                        if (!hasTimeIn) {
+                            timeInButton.setVisibility(View.VISIBLE);  // ✅ Show Time In
+                            timeOutButton.setVisibility(View.GONE);    // ❌ Hide Time Out
+                        } else if (!hasTimeOut) {
+                            timeInButton.setVisibility(View.GONE);    // ❌ Hide Time In
+                            timeOutButton.setVisibility(View.VISIBLE); // ✅ Show Time Out
+                        } else {
+                            timeInButton.setVisibility(View.GONE);  // ❌ Hide Time In
+                            timeOutButton.setVisibility(View.GONE); // ❌ Hide Time Out
+                        }
+                    } else {
+                        timeInButton.setVisibility(View.VISIBLE);  // ✅ No attendance yet, show Time In
+                        timeOutButton.setVisibility(View.GONE);    // ❌ Hide Time Out
+                    }
+                })
+                .addOnFailureListener(e -> Log.e("AttendanceStatus", "❌ Error checking attendance: ", e));
+    }
 
 }

@@ -26,12 +26,11 @@ public class Students_Room extends AppCompatActivity {
     private ImageView homeIcon;
     private ImageView scheduleIcon;
     private String uid;
-    private Button scanQRButton, inputCodeButton;
+    private Button scanQRButton, inputCodeButton, createRoomButton;
     private TextView noRoomsTextView;
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private TextView navUsername, navIdNumber;
-    private Button createRoomButton;
     private LinearLayout roomsLayout;
 
     @Override
@@ -39,16 +38,113 @@ public class Students_Room extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rooms);
 
+        // Setup Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
         TextView toolbarTitle = findViewById(R.id.toolbarTitle);
         toolbarTitle.setText("Rooms");
 
-        uid = getIntent().getStringExtra("uid");
+        // Retrieve data from the Intent
+        String roomId = getIntent().getStringExtra("roomId");
+        String teacherId = getIntent().getStringExtra("teacherId");
+        String section = getIntent().getStringExtra("section");
+        String subjectCode = getIntent().getStringExtra("subjectCode");
+        String studentId = getIntent().getStringExtra("studentId");
+
+        // Initialize uid
+        if (studentId != null) {
+            uid = studentId;
+        } else {
+            uid = FirebaseAuth.getInstance().getUid(); // Fallback to logged-in user
+        }
+
+        // Validate data
+        if (uid == null) {
+            Toast.makeText(this, "Student ID is missing. Please log in again.", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        // Log the received data
+        Log.d(TAG, "Room ID: " + roomId);
+        Log.d(TAG, "Teacher ID: " + teacherId);
+        Log.d(TAG, "Section: " + section);
+        Log.d(TAG, "Subject Code: " + subjectCode);
+        Log.d(TAG, "Student ID: " + uid);
+
+        // Allow user to open the room even if no data is fetched
+        if (roomId != null) {
+            fetchStudentSections(roomId, uid);
+        } else {
+            Toast.makeText(this, "Room opened without fetched data.", Toast.LENGTH_SHORT).show();
+        }
 
         noRoomsTextView = findViewById(R.id.noRoomsTextView);
         roomsLayout = findViewById(R.id.roomsLayout);
+
+        // Setup Views
+        setupUI();
+        fetchStudentDetailed(uid);
+        fetchRooms();
+    }
+
+    private void setupUI() {
+        reportIcon = findViewById(R.id.reportIcon);
+        homeIcon = findViewById(R.id.homeIcon);
+        scheduleIcon = findViewById(R.id.scheduleIcon);
+        scanQRButton = findViewById(R.id.scanQRButtons);
+        inputCodeButton = findViewById(R.id.inputCodeButton);
+
+        // Drawer setup
+        drawerLayout = findViewById(R.id.drawerLayout);
+        navigationView = findViewById(R.id.navigationView);
+        navUsername = navigationView.findViewById(R.id.navUsername);
+        navIdNumber = navigationView.findViewById(R.id.navIdNumber);
+        createRoomButton = findViewById(R.id.createRoomButton);
+
+
+        createRoomButton.setVisibility(View.GONE);
+
+
+        inputCodeButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Room.this, InputCodeActivity.class);
+            startActivity(intent);
+        });
+
+// Set click listener for scanQRButton
+        scanQRButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Room.this, GenerateCode.class);
+            startActivity(intent);
+        });
+
+
+
+        reportIcon.setOnClickListener(v -> {
+            getSupportActionBar().setTitle("Room");
+            Intent intent = new Intent(Students_Room.this, Students_Report.class);
+            intent.putExtra("uid", uid);
+            startActivity(intent);
+            overridePendingTransition(0, 0);
+        });
+
+        // Set click listener for homeIcon
+        homeIcon.setOnClickListener(v -> {
+            getSupportActionBar().setTitle("Home");
+            Intent intent = new Intent(Students_Room.this, Students_Home.class);
+            intent.putExtra("uid", uid);
+            startActivity(intent);
+            overridePendingTransition(0, 0);
+        });
+
+        // Set click listener for scheduleIcon
+        scheduleIcon.setOnClickListener(v -> {
+            getSupportActionBar().setTitle("Calendar");
+            Intent intent = new Intent(Students_Room.this, Students_Calendar.class);
+            intent.putExtra("uid", uid);
+            startActivity(intent);
+            overridePendingTransition(0, 0);
+        });
 
         Button logoutButton = findViewById(R.id.logoutButton);
         logoutButton.setOnClickListener(v -> {
@@ -59,53 +155,12 @@ public class Students_Room extends AppCompatActivity {
             finish();
         });
 
-        reportIcon = findViewById(R.id.reportIcon);
-        homeIcon = findViewById(R.id.homeIcon);
-        scheduleIcon = findViewById(R.id.scheduleIcon);
-        scanQRButton = findViewById(R.id.scanQRButtons);
-        inputCodeButton = findViewById(R.id.inputCodeButton);
-
-        createRoomButton = findViewById(R.id.createRoomButton);
-        createRoomButton.setVisibility(View.GONE);
-
-        drawerLayout = findViewById(R.id.drawerLayout);
-        navigationView = findViewById(R.id.navigationView);
-        navUsername = navigationView.findViewById(R.id.navUsername);
-        navIdNumber = navigationView.findViewById(R.id.navIdNumber);
-
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
-
-        fetchStudentDetailed(uid);
-        fetchSections();
-        setupListeners();
-
-        reportIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Report");
-            Intent intent = new Intent(Students_Room.this, Students_Report.class);
-            intent.putExtra("uid", uid);
-            startActivity(intent);
-            overridePendingTransition(0, 0);
-        });
-
-        homeIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Home");
-            Intent intent = new Intent(Students_Room.this, Students_Home.class);
-            intent.putExtra("uid", uid);
-            startActivity(intent);
-            overridePendingTransition(0, 0);
-        });
-
-        scheduleIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Calendar");
-            Intent intent = new Intent(Students_Room.this, Students_Calendar.class);
-            intent.putExtra("uid", uid);
-            startActivity(intent);
-            overridePendingTransition(0, 0);
-        });
     }
 
     private void fetchStudentDetailed(String uid) {
+        Log.d(TAG, "Fetching student details for UID: " + uid);
         FirebaseFirestore.getInstance().collection("students")
                 .document(uid)
                 .get()
@@ -119,143 +174,160 @@ public class Students_Room extends AppCompatActivity {
                         Log.d(TAG, "Student details fetched: " + firstName + " " + lastName);
                     } else {
                         Log.d(TAG, "Student document does not exist.");
+                        navUsername.setText("Unknown User");
+                        navIdNumber.setText("N/A");
                     }
                 })
                 .addOnFailureListener(e -> {
                     navUsername.setText("Error fetching details");
-                    navIdNumber.setText("");
+                    navIdNumber.setText("N/A");
                     Log.e(TAG, "Error fetching student details: " + e.getMessage());
                 });
     }
 
-    private void fetchSections() {
-        Log.d(TAG, "Fetching sections...");
-
-        FirebaseFirestore.getInstance().collection("sections")
+    private void fetchRooms() {
+        Log.d(TAG, "Fetching rooms...");
+        FirebaseFirestore.getInstance().collection("rooms")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
-                        Log.d(TAG, "Sections fetched successfully. Count: " + queryDocumentSnapshots.size());
+                        Log.d(TAG, "Rooms fetched successfully. Count: " + queryDocumentSnapshots.size());
                         noRoomsTextView.setVisibility(View.GONE);
                         roomsLayout.removeAllViews();
 
                         for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                            String sectionId = document.getId(); // Example: "11111-G01"
-                            Log.d(TAG, "Section ID found: " + sectionId);
+                            String roomId = document.getId();
+                            String subjectCode = document.getString("subjectCode");
+                            String section = document.getString("section");
 
-                            // Check if the user is enrolled in this section
-                            checkStudentEnrollment(sectionId);
+                            if (subjectCode == null || section == null) {
+                                Log.w(TAG, "Room ID: " + roomId + " has missing 'subjectCode' or 'section'. Skipping.");
+                                continue; // Skip this room if data is missing
+                            }
+
+                            Log.d(TAG, "Room ID found: " + roomId + ", Subject Code: " + subjectCode + ", Section: " + section);
+                            checkStudentInRoom(roomId, subjectCode, section);
                         }
                     } else {
                         noRoomsTextView.setVisibility(View.VISIBLE);
-                        Log.d(TAG, "No sections available.");
+                        Log.d(TAG, "No rooms available.");
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Error fetching sections: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    Log.e(TAG, "Error fetching sections: " + e.getMessage());
+                    Toast.makeText(this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error fetching rooms: " + e.getMessage());
                 });
     }
 
 
-    private void checkStudentEnrollment(String sectionId) {
-        Log.d(TAG, "Checking student enrollment in section: " + sectionId);
+
+    private void checkStudentInRoom(String roomId, String subjectCode, String section) {
+        Log.d(TAG, "Checking if student is part of room: " + roomId);
 
         FirebaseFirestore.getInstance()
-                .collection("sections")
-                .document(sectionId)
+                .collection("rooms")
+                .document(roomId)
                 .collection("students")
-                .document(uid) // Match the current user ID
+                .document(uid)
                 .get()
                 .addOnSuccessListener(studentDoc -> {
                     if (studentDoc.exists()) {
-                        Log.d(TAG, "User is enrolled in section: " + sectionId);
-
-                        String[] parts = sectionId.split("-");
-                        if (parts.length == 2) {
-                            String subjectCode = parts[0];
-                            String sectionName = parts[1];
-                            createSectionButton(subjectCode, sectionName, sectionId);
-                        } else {
-                            Log.e(TAG, "Invalid section ID format: " + sectionId);
-                        }
+                        Log.d(TAG, "Student is part of room: " + roomId);
+                        createRoomButton(subjectCode, section, roomId);
                     } else {
-                        Log.d(TAG, "User not enrolled in section: " + sectionId);
+                        Log.d(TAG, "Student not part of room: " + roomId);
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error checking enrollment in section: " + sectionId, e);
+                    Log.e(TAG, "Error checking student in room: " + roomId, e);
                 });
     }
 
 
+    private void createRoomButton(String subjectCode, String section, String roomId) {
+        Log.d(TAG, "Creating button for room: " + subjectCode + " - " + section);
 
+        Button roomButton = new Button(this);
+        roomButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        roomButton.setText(subjectCode + " - " + section);
+        roomButton.setTextSize(18);
+        roomButton.setTextColor(getResources().getColor(R.color.maroon, null));
+        roomButton.setBackgroundResource(R.drawable.button_border);
 
-    private void createSectionButton(String subjectCode, String sectionName, String sectionId) {
+        roomButton.setOnClickListener(v -> {
+            Toast.makeText(this, "Room clicked: " + subjectCode + " - " + section, Toast.LENGTH_SHORT).show();
+        });
+
+        runOnUiThread(() -> {
+            // Make the layout visible and add the button
+            if (roomsLayout.getVisibility() == View.GONE) {
+                roomsLayout.setVisibility(View.VISIBLE);
+            }
+            roomsLayout.addView(roomButton);
+            Log.d(TAG, "Button added to UI. Total children: " + roomsLayout.getChildCount());
+        });
+    }
+
+    private void fetchStudentSections(String roomId, String studentId) {
+        Log.d(TAG, "Fetching sections for student: " + studentId + " in room: " + roomId);
+
+        FirebaseFirestore.getInstance()
+                .collection("rooms")
+                .document(roomId)
+                .collection("students")
+                .document(studentId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        // Extract data for the student
+                        String subjectCode = documentSnapshot.getString("subjectCode");
+                        String sectionName = documentSnapshot.getString("section");
+
+                        if (subjectCode != null && sectionName != null) {
+                            Log.d(TAG, "Found section: " + subjectCode + " - " + sectionName);
+                            createSectionButton(subjectCode, sectionName, roomId);
+                        } else {
+                            Log.e(TAG, "Missing subjectCode or sectionName for student: " + studentId);
+                            Toast.makeText(this, "No sections available for this student.", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Log.d(TAG, "No document found for student in this room.");
+                        Toast.makeText(this, "Student not found in this room.", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error fetching student sections: " + e.getMessage());
+                    Toast.makeText(this, "Error fetching sections: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void createSectionButton(String subjectCode, String sectionName, String roomId) {
         Log.d(TAG, "Creating button for: " + subjectCode + " - " + sectionName);
 
         Button sectionButton = new Button(this);
         sectionButton.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                100
+                LinearLayout.LayoutParams.WRAP_CONTENT
         ));
+
+        // Set the button label
         String buttonLabel = subjectCode + " - " + sectionName;
         sectionButton.setText(buttonLabel);
-        sectionButton.setTextSize(18);
+        sectionButton.setTextSize(25);
         sectionButton.setTextColor(getResources().getColor(R.color.maroon, null));
         sectionButton.setBackgroundResource(R.drawable.button_border);
-        sectionButton.setPadding(20, 20, 20, 20);
 
+        // Set click listener for the button
         sectionButton.setOnClickListener(v -> {
             Toast.makeText(this, "Section clicked: " + buttonLabel, Toast.LENGTH_SHORT).show();
+            // You can navigate to another activity or perform actions related to the section here
         });
 
+        // Add the button to the layout
         roomsLayout.addView(sectionButton);
     }
 
-
-
-
-    private void fetchStudents(String sectionPath, LinearLayout studentLayout) {
-        Log.d(TAG, "Fetching students for: " + sectionPath);
-
-        FirebaseFirestore.getInstance().collection(sectionPath + "/students")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    studentLayout.removeAllViews();
-                    if (!queryDocumentSnapshots.isEmpty()) {
-                        Log.d(TAG, "Students fetched for section: " + sectionPath + ". Count: " + queryDocumentSnapshots.size());
-                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                            String studentId = document.getId();
-                            Log.d(TAG, "Student ID: " + studentId);
-
-                            TextView studentTextView = new TextView(this);
-                            studentTextView.setText("Student ID: " + studentId);
-                            studentTextView.setTextSize(16);
-                            studentTextView.setPadding(20, 10, 20, 10);
-
-                            studentLayout.addView(studentTextView);
-                        }
-                    } else {
-                        Toast.makeText(this, "No students found in this section.", Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, "No students found for section: " + sectionPath);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Error fetching students: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    Log.e(TAG, "Error fetching students for section: " + sectionPath, e);
-                });
-    }
-
-    private void setupListeners() {
-        scanQRButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Students_Room.this, ScanQRActivity.class);
-            startActivity(intent);
-        });
-
-        inputCodeButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Students_Room.this, InputCodeActivity.class);
-            startActivity(intent);
-        });
-    }
 }

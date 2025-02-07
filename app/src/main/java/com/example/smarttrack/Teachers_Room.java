@@ -2,7 +2,6 @@ package com.example.smarttrack;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -15,14 +14,10 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.android.material.navigation.NavigationView;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
 import java.util.Map;
 
 public class Teachers_Room extends AppCompatActivity {
@@ -161,14 +156,18 @@ public class Teachers_Room extends AppCompatActivity {
 
     // Method to show the floating window with buttons
     private void showFloatingWindow(String roomCode, String subjectCode, String section) {
+        View blurBackground = findViewById(R.id.blurBackground);
         floatingWindow.setVisibility(View.VISIBLE);  // Show the floating window
-        roomsLayout.setVisibility(View.GONE);  // Hide rooms layout
+        blurBackground.setVisibility(View.VISIBLE);  // Show the blur background
+        roomsLayout.setVisibility(View.GONE);
 
         // Set room-related text
         Button generateCodeButton = findViewById(R.id.generateCodeButton);
         Button viewStudentsButton = findViewById(R.id.viewStudentsButton);
         generateCodeButton.setText("Generate Code");
         viewStudentsButton.setText("View Students");
+
+
 
         // Set onClickListeners for the buttons inside the floating window
         generateCodeButton.setOnClickListener(v -> {
@@ -179,16 +178,41 @@ public class Teachers_Room extends AppCompatActivity {
         });
 
         viewStudentsButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
-            intent.putExtra("section", section); // Pass the section to ViewStudents
-            intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
-            startActivity(intent);
+            if (roomCode == null || roomCode.isEmpty()) {
+                Toast.makeText(this, "Room Code is missing. Cannot view students.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Fetch the roomId based on the roomCode before transitioning
+            FirebaseFirestore.getInstance().collection("rooms")
+                    .whereEqualTo("roomCode", roomCode)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        if (!queryDocumentSnapshots.isEmpty()) {
+                            String roomId = queryDocumentSnapshots.getDocuments().get(0).getId();
+                            Log.d("showFloatingWindow", "Room ID resolved: " + roomId);
+
+                            Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
+                            intent.putExtra("roomId", roomId); // Pass the resolved roomId to ViewStudents
+                            intent.putExtra("section", section); // Pass the section to ViewStudents
+                            intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(this, "No room found for the provided code.", Toast.LENGTH_SHORT).show();
+                            Log.e("showFloatingWindow", "No room found for roomCode: " + roomCode);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Error fetching room ID: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Log.e("showFloatingWindow", "Error fetching room ID for roomCode: " + roomCode, e);
+                    });
         });
 
         // Close button for the floating window
         ImageView closeFloatingWindow = findViewById(R.id.closeFloatingWindow);
         closeFloatingWindow.setOnClickListener(v -> {
             floatingWindow.setVisibility(View.GONE);  // Hide the floating window
+            blurBackground.setVisibility(View.GONE);  // Hide the blur background
             roomsLayout.setVisibility(View.VISIBLE);  // Show the rooms layout again
         });
     }

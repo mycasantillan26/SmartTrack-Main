@@ -37,9 +37,9 @@
                 android:textStyle="bold" />
         </androidx.appcompat.widget.Toolbar>
 
-        <!-- CalendarView -->
+        <!-- Material Calendar View -->
         <com.prolificinteractive.materialcalendarview.MaterialCalendarView
-            android:id="@+id/calendarView"
+            android:id="@+id/studentCalendarView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="70dp"
@@ -54,24 +54,11 @@
             android:id="@+id/eventRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_below="@id/calendarView"
+            android:layout_below="@id/studentCalendarView"
             android:layout_above="@id/navigationBar"
             android:padding="8dp"
             android:clipToPadding="false"
             android:scrollbars="vertical" />
-
-        <!-- Floating Action Button -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/addEventButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginStart="16dp"
-            android:layout_marginBottom="90dp"
-            app:backgroundTint="#FFD700"
-            app:srcCompat="@android:drawable/ic_input_add"
-            android:contentDescription="Add Event" />
 
         <!-- Navigation Bar -->
         <LinearLayout

@@ -1,53 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:orientation="vertical"
+    android:background="@color/white">
 
-    <TextView
-        android:id="@+id/monthlyAttendanceTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Monthly Attendance Summary"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"/>
-
+    <!-- Title Container -->
     <LinearLayout
-        android:id="@+id/monthlySummaryContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_below="@id/monthlyAttendanceTitle"
-        android:padding="8dp">
+        android:background="@color/maroon"
+        android:padding="12dp"
+        android:gravity="center">
 
         <TextView
-            android:id="@+id/presentLabel"
-            android:layout_width="match_parent"
+            android:id="@+id/titleText"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Presents: 0"
-            android:textSize="18sp"
-            android:textColor="@android:color/holo_green_dark"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/lateLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Lates: 0"
-            android:textSize="18sp"
-            android:textColor="@android:color/holo_orange_dark"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/absentLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Absents: 0"
-            android:textSize="18sp"
-            android:textColor="@android:color/holo_red_dark"
-            android:layout_marginBottom="8dp" />
-
+            android:text="Monthly Attendance Summary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/white" />
     </LinearLayout>
-</RelativeLayout>
+
+    <!-- Empty Message -->
+    <TextView
+        android:id="@+id/emptyMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="No attendance records available."
+        android:textSize="16sp"
+        android:textColor="@color/black"
+        android:visibility="gone"
+        android:layout_gravity="center_horizontal" />
+
+    <!-- Monthly Attendance List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/monthRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:padding="8dp"
+        android:background="@color/white"/>
+</LinearLayout>

@@ -1,4 +1,5 @@
 package com.example.smarttrack;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -20,8 +21,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Teachers_Room extends AppCompatActivity {
-
+public class Admins_Room extends AppCompatActivity {
     private String uid;
     private LinearLayout roomsLayout;
     private ImageView reportIcon;
@@ -69,7 +69,7 @@ public class Teachers_Room extends AppCompatActivity {
 
         // Set OnClickListener for createRoomButton to redirect to Teachers_CreateRoom activity
         createRoomButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Teachers_Room.this, Teachers_CreateRoom.class);
+            Intent intent = new Intent(Admins_Room.this, Teachers_CreateRoom.class);
             intent.putExtra("uid", uid);  // Pass the UID to Teachers_CreateRoom
             startActivity(intent);
         });
@@ -93,11 +93,11 @@ public class Teachers_Room extends AppCompatActivity {
                         }
                         displayRooms(roomDetails);
                     } else {
-                        Toast.makeText(Teachers_Room.this, "No rooms found", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(Admins_Room.this, "No rooms found", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(Teachers_Room.this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(Admins_Room.this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
@@ -167,7 +167,7 @@ public class Teachers_Room extends AppCompatActivity {
 
         // Set onClickListeners for the buttons inside the floating window
         generateCodeButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Teachers_Room.this, GenerateCode.class);
+            Intent intent = new Intent(Admins_Room.this, GenerateCode.class);
             intent.putExtra("roomCode", roomCode); // Pass the roomCode to GenerateCode
             intent.putExtra("subjectSection", subjectCode + " - " + section); // Include subject and section
             startActivity(intent);
@@ -188,7 +188,7 @@ public class Teachers_Room extends AppCompatActivity {
                             String roomId = queryDocumentSnapshots.getDocuments().get(0).getId();
                             Log.d("showFloatingWindow", "Room ID resolved: " + roomId);
 
-                            Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
+                            Intent intent = new Intent(Admins_Room.this, ViewStudents.class);
                             intent.putExtra("roomId", roomId); // Pass the resolved roomId to ViewStudents
                             intent.putExtra("section", section); // Pass the section to ViewStudents
                             intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
@@ -240,7 +240,7 @@ public class Teachers_Room extends AppCompatActivity {
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setTitle("Report");
             }
-            Intent intent = new Intent(Teachers_Room.this, Teachers_Report.class);
+            Intent intent = new Intent(Admins_Room.this, Admins_Report.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);
@@ -250,7 +250,7 @@ public class Teachers_Room extends AppCompatActivity {
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setTitle("Home");
             }
-            Intent intent = new Intent(Teachers_Room.this, Teachers_Home.class);
+            Intent intent = new Intent(Admins_Room.this, Admins_Home.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);
@@ -260,7 +260,7 @@ public class Teachers_Room extends AppCompatActivity {
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setTitle("Calendar");
             }
-            Intent intent = new Intent(Teachers_Room.this, Teachers_Calendar.class);
+            Intent intent = new Intent(Admins_Room.this, Admins_Calendar.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);

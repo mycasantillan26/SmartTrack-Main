@@ -95,7 +95,7 @@ public class Teachers_Home extends AppCompatActivity {
 
         String uid = getIntent().getStringExtra("uid");
         fetchRoomsByTeacher(uid);
-        fetchStudentDetailed(uid);
+        fetchUserDetailed(uid);
 
 
 
@@ -137,14 +137,14 @@ public class Teachers_Home extends AppCompatActivity {
             overridePendingTransition(0, 0);
         });
 
-        fetchStudentDetails(uid);
+        fetchUserDetails(uid);
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         requestLocationPermission();
     }
 
 
-    private void fetchStudentDetails(String uid) {
+    private void fetchUserDetails(String uid) {
         FirebaseFirestore.getInstance().collection("teachers")
                 .document(uid)
                 .get()
@@ -160,7 +160,7 @@ public class Teachers_Home extends AppCompatActivity {
                 .addOnFailureListener(e -> dashboardMessage.setText("Error fetching teacher details."));
     }
 
-    private void fetchStudentDetailed(String uid) {
+    private void fetchUserDetailed(String uid) {
         FirebaseFirestore.getInstance().collection("teachers")
                 .document(uid)
                 .get()

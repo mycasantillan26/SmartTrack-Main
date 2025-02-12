@@ -9,6 +9,7 @@
     <uses-permission android:name="com.google.android.gms.permission.BIND_GET_INSTALL_REFERRER_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
@@ -33,7 +34,7 @@
             android:value="@integer/google_play_services_version" />
 
 
-       <meta-data
+        <meta-data
             android:name="com.google.firebase.ml.vision.DEPENDENCIES"
             android:value="face" />
 
@@ -45,6 +46,10 @@
         <meta-data
             android:name="androidx.camera.lifecycle.ProcessCameraProvider"
             android:value="androidx.camera.camera2.Camera2Config" />
+
+        <!--Event Reminder -->
+        <receiver android:name=".EventReminderReceiver" android:exported="false" />
+
 
         <!-- Landing Page Activity -->
         <activity
@@ -117,6 +122,11 @@
             android:name=".Students_Calendar"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Students_EventDetails"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+
 
         <!--Teacher-->
         <activity
@@ -135,7 +145,14 @@
             android:name=".Teachers_Calendar"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
-
+        <activity
+            android:name=".Teachers_CreateEvent"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Teachers_EditEvent"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
         <activity
             android:name=".Teachers_CreateRoom"
             android:exported="true"

@@ -10,6 +10,9 @@
         android:layout_height="match_parent"
         android:background="#FFFFFF">
 
+
+        <!-- Dashboard Message Below Location -->
+
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             style="@style/ToolbarStyle"
@@ -35,10 +38,16 @@
                 android:textColor="@android:color/white"
                 android:textSize="20sp"
                 android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/logoIcon"
+                android:layout_width="70dp"
+                android:layout_height="40dp"
+                android:layout_gravity="end"
+                android:contentDescription="Logo Icon"
+                android:padding="5dp"
+                android:src="@drawable/circle_logo" />
         </androidx.appcompat.widget.Toolbar>
-
-
-        <!-- Dashboard Message Below Location -->
 
         <TextView
             android:id="@+id/dashboardMessage"

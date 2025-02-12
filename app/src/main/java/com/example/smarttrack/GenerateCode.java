@@ -55,5 +55,7 @@ public class GenerateCode extends AppCompatActivity {
         } catch (WriterException e) {
             e.printStackTrace();
         }
-    }
+
+
+}
 }

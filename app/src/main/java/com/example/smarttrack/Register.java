@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
@@ -26,7 +25,7 @@ public class Register extends AppCompatActivity {
 
     private EditText emailField, firstNameField, middleNameField, lastNameField, idNumberField, passwordField, confirmPasswordField;
     private EditText courseYearField, dobField, homeAddressField, cityAddressField, contactNumberField;
-    private Spinner userTypeSpinner, genderSpinner;
+    private Spinner genderSpinner;
     private Button signUpButton;
     private TextView welcomeText, subtitleText;
     private View logoImageView;
@@ -35,6 +34,7 @@ public class Register extends AppCompatActivity {
     private TextView alreadyHaveAccount;
 
     private boolean isNextClicked = false;
+    private boolean isTeacher = false; // Default to false, set based on intent
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,62 +49,54 @@ public class Register extends AppCompatActivity {
         // Initialize views
         initializeViews();
 
+        // Get userType from Intent (default: student)
+        String userType = getIntent().getStringExtra("userType");
+        if (userType == null || userType.isEmpty()) {
+            userType = "student"; // Default to student if no userType is provided
+        }
+        isTeacher = userType.equalsIgnoreCase("teacher");
+
+        // Update subtitle text dynamically
+        subtitleText.setText("Register as " + capitalizeFirstLetter(userType));
+
         alreadyHaveAccount.setOnClickListener(v -> navigateToLogin());
 
-        // Set initial visibility for student fields
-        toggleStudentFields(View.GONE);
-
-        // Set up DatePicker for DOB
         dobField.setOnClickListener(v -> showDatePicker());
 
-        // Automatically add "+63" to contact number field
-        contactNumberField.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus && TextUtils.isEmpty(contactNumberField.getText().toString())) {
-                contactNumberField.setText("+63");
-                contactNumberField.setSelection(contactNumberField.getText().length());
-            }
-        });
-
-        // Handle user type selection
-        userTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedUserType = userTypeSpinner.getSelectedItem().toString();
-                if (selectedUserType.equals("Student")) {
-                    signUpButton.setText("NEXT");
-                } else {
-                    toggleStudentFields(View.GONE);
-                    signUpButton.setText("SIGN UP");
-                }
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
+        // Hide student-specific fields if registering a teacher
+        if (isTeacher) {
+            toggleStudentFields(View.GONE);
+            signUpButton.setText("REGISTER TEACHER");
+        } else {
+            signUpButton.setText("NEXT");
+        }
 
         // Handle sign-up button click
         signUpButton.setOnClickListener(v -> {
-            String selectedUserType = userTypeSpinner.getSelectedItem().toString();
-
-            if (!isNextClicked && selectedUserType.equals("Student")) {
-                if (validateInitialInputs()) {
-                    toggleInitialFields(View.GONE);
-                    toggleStudentFields(View.VISIBLE);
-                    welcomeText.setText("Student Information");
-                    subtitleText.setVisibility(View.GONE);
-                    logoImageView.setVisibility(View.GONE);
-                    isNextClicked = true;
-                }
-            } else if (selectedUserType.equals("Student") && isNextClicked) {
-                if (validateStudentInputs()) {
-                    registerUser();
-                }
-            } else if (selectedUserType.equals("Teacher")) {
+            if (isTeacher) {
                 if (validateInitialInputs()) {
                     registerTeacher();
                 }
+            } else {
+                if (!isNextClicked) {
+                    if (validateInitialInputs()) {
+                        toggleInitialFields(View.GONE);
+                        toggleStudentFields(View.VISIBLE);
+                        welcomeText.setText("Student Information");
+                        isNextClicked = true;
+                    }
+                } else if (validateStudentInputs()) {
+                    registerStudent();
+                }
             }
         });
+
+            contactNumberField.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus && TextUtils.isEmpty(contactNumberField.getText().toString())) {
+                    contactNumberField.setText("+63");
+                    contactNumberField.setSelection(contactNumberField.getText().length());
+                }
+            });
     }
 
     private void initializeViews() {
@@ -115,7 +107,6 @@ public class Register extends AppCompatActivity {
         idNumberField = findViewById(R.id.idNumberField);
         passwordField = findViewById(R.id.passwordField);
         confirmPasswordField = findViewById(R.id.confirmPasswordField);
-        userTypeSpinner = findViewById(R.id.userTypeSpinner);
         courseYearField = findViewById(R.id.courseYearField);
         dobField = findViewById(R.id.dobPicker);
         homeAddressField = findViewById(R.id.homeAddressField);
@@ -151,7 +142,6 @@ public class Register extends AppCompatActivity {
         idNumberField.setVisibility(visibility);
         passwordField.setVisibility(visibility);
         confirmPasswordField.setVisibility(visibility);
-        userTypeSpinner.setVisibility(visibility);
     }
 
     private void toggleStudentFields(int visibility) {
@@ -167,13 +157,14 @@ public class Register extends AppCompatActivity {
         String email = emailField.getText().toString().trim();
         String password = passwordField.getText().toString().trim();
         String confirmPassword = confirmPasswordField.getText().toString().trim();
+        String idNumber = idNumberField.getText().toString().trim();
 
         if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)) {
             Toast.makeText(this, "All fields are required!", Toast.LENGTH_SHORT).show();
             return false;
         }
 
-        if (!email.endsWith("@cit.edu") && !email.endsWith("@gmail.com")) {
+        if (!email.endsWith("@cit.edu")) {
             Toast.makeText(this, "Email must be @cit.edu domain!", Toast.LENGTH_SHORT).show();
             return false;
         }
@@ -183,10 +174,32 @@ public class Register extends AppCompatActivity {
             return false;
         }
 
+        if (!isValidIdNumber(idNumber)) {
+            Toast.makeText(this, "Invalid ID Number! Format must be 00-0000-000.", Toast.LENGTH_LONG).show();
+            return false;
+        }
+
+        if (!isValidPassword(password)) {
+            Toast.makeText(this, "Password must be at least 8 characters, include 1 uppercase, 1 number, and 1 special character.", Toast.LENGTH_LONG).show();
+            return false;
+        }
+
         return true;
     }
 
+    private boolean isValidPassword(String password) {
+        String passwordPattern = "^(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?])(?=.*\\d).{8,}$";
+        return password.matches(passwordPattern);
+    }
+
+    private boolean isValidIdNumber(String idNumber) {
+        String idNumberPattern = "^\\d{2}-\\d{4}-\\d{3}$";
+        return idNumber.matches(idNumberPattern);
+    }
+
     private boolean validateStudentInputs() {
+        String contactNumber = contactNumberField.getText().toString().trim();
+
         if (TextUtils.isEmpty(courseYearField.getText().toString()) ||
                 TextUtils.isEmpty(homeAddressField.getText().toString()) ||
                 TextUtils.isEmpty(cityAddressField.getText().toString()) ||
@@ -195,7 +208,17 @@ public class Register extends AppCompatActivity {
             return false;
         }
 
+        if (!isValidContactNumber(contactNumber)) {
+            Toast.makeText(this, "Invalid Contact Number! Format must be +639XXXXXXXXXX.", Toast.LENGTH_LONG).show();
+            return false;
+        }
+
         return true;
+    }
+
+    private boolean isValidContactNumber(String contactNumber) {
+        String contactPattern = "^\\+639\\d{10}$";
+        return contactNumber.matches(contactPattern);
     }
 
     private void registerTeacher() {
@@ -205,7 +228,6 @@ public class Register extends AppCompatActivity {
         firebaseAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        // User registration successful, now send email verification
                         sendEmailVerification(() -> saveTeacherToFirestore());
                     } else {
                         Toast.makeText(this, "Error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
@@ -213,9 +235,8 @@ public class Register extends AppCompatActivity {
                 });
     }
 
-
     private void saveTeacherToFirestore() {
-        String uid = firebaseAuth.getCurrentUser().getUid();  // Get the Firebase Auth UID
+        String uid = firebaseAuth.getCurrentUser().getUid();
 
         Map<String, Object> teacherData = new HashMap<>();
         teacherData.put("email", emailField.getText().toString());
@@ -223,29 +244,24 @@ public class Register extends AppCompatActivity {
         teacherData.put("middleName", middleNameField.getText().toString());
         teacherData.put("lastName", lastNameField.getText().toString());
         teacherData.put("idNumber", idNumberField.getText().toString());
-        teacherData.put("userType", "Teacher");
-        teacherData.put("isConfirmedByAdmin", false); // Admin approval required
+        teacherData.put("isConfirmedByAdmin", true);
 
-        // Save teacher data with UID as document ID
-        firestore.collection("teachers")
-                .document(uid)  // Use the Firebase UID as the document ID
-                .set(teacherData)
-                .addOnSuccessListener(documentReference -> {
-                    Toast.makeText(this, "Confirmation email sent. Please verify your email and wait for admin approval to log in.", Toast.LENGTH_SHORT).show();
-                    navigateToLogin();
+        firestore.collection("teachers").document(uid).set(teacherData)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Teacher registered. Verification email sent.", Toast.LENGTH_LONG).show();
+                    finish();
                 })
                 .addOnFailureListener(e ->
                         Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
-    private void registerUser() {
+    private void registerStudent() {
         String email = emailField.getText().toString().trim();
         String password = passwordField.getText().toString().trim();
 
         firebaseAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        // User registration successful, now send email verification
                         sendEmailVerification(() -> saveStudentToFirestore());
                     } else {
                         Toast.makeText(this, "Error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
@@ -253,34 +269,6 @@ public class Register extends AppCompatActivity {
                 });
     }
 
-    private void saveStudentToFirestore() {
-        String uid = firebaseAuth.getCurrentUser().getUid();  // Get the Firebase Auth UID
-
-        Map<String, Object> studentData = new HashMap<>();
-        studentData.put("email", emailField.getText().toString());
-        studentData.put("firstName", firstNameField.getText().toString());
-        studentData.put("middleName", middleNameField.getText().toString());
-        studentData.put("lastName", lastNameField.getText().toString());
-        studentData.put("idNumber", idNumberField.getText().toString());
-        studentData.put("userType", "Student");
-        studentData.put("courseYear", courseYearField.getText().toString());
-        studentData.put("gender", genderSpinner.getSelectedItem().toString());
-        studentData.put("dateOfBirth", dobField.getText().toString().trim());
-        studentData.put("homeAddress", homeAddressField.getText().toString());
-        studentData.put("cityAddress", cityAddressField.getText().toString());
-        studentData.put("contactNumber", contactNumberField.getText().toString());
-
-        // Save student data with UID as document ID
-        firestore.collection("students")
-                .document(uid)  // Use the Firebase UID as the document ID
-                .set(studentData)
-                .addOnSuccessListener(documentReference -> {
-                    Toast.makeText(this, "Confirmation email sent. Please verify your email to log in.", Toast.LENGTH_SHORT).show();
-                    navigateToFaceRecognition(uid); // Pass the UID for further use
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-    }
     private void sendEmailVerification(Runnable onSuccess) {
         firebaseAuth.getCurrentUser().sendEmailVerification()
                 .addOnCompleteListener(task -> {
@@ -292,16 +280,35 @@ public class Register extends AppCompatActivity {
                 });
     }
 
+    private void saveStudentToFirestore() {
+        String uid = firebaseAuth.getCurrentUser().getUid();
+
+        Map<String, Object> studentData = new HashMap<>();
+        studentData.put("email", emailField.getText().toString());
+        studentData.put("firstName", firstNameField.getText().toString());
+        studentData.put("middleName", middleNameField.getText().toString());
+        studentData.put("lastName", lastNameField.getText().toString());
+        studentData.put("idNumber", idNumberField.getText().toString());
+
+        firestore.collection("students").document(uid).set(studentData)
+                .addOnSuccessListener(aVoid -> navigateToFaceRecognition(uid))
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
     private void navigateToFaceRecognition(String documentId) {
         Intent intent = new Intent(this, FaceRegister.class);
-        intent.putExtra("documentId", documentId); // Pass the document ID
+        intent.putExtra("documentId", documentId);
         startActivity(intent);
         finish();
     }
 
     private void navigateToLogin() {
-        Intent intent = new Intent(this, Login.class);
-        startActivity(intent);
+        startActivity(new Intent(this, Login.class));
         finish();
+    }
+
+    private String capitalizeFirstLetter(String text) {
+        return text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
     }
 }

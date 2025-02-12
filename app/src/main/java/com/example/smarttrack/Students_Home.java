@@ -14,37 +14,33 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
-import android.view.View;
-import android.widget.EditText;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
 
-import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.Query;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+
+import android.view.View;
+import android.widget.Toast;
+
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import com.google.android.material.navigation.NavigationView;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 public class Students_Home extends AppCompatActivity {
     private static final String TAG = "Students_Home";
-    private static final int QR_CODE_REQUEST_CODE = 1001;
 
     private ImageView roomIcon;
     private ImageView reportIcon;
@@ -52,14 +48,14 @@ public class Students_Home extends AppCompatActivity {
     private TextView dashboardMessage;
     private TextView locationTextView;
     private LocationManager locationManager;
-
     private boolean locationDisplayed = false;
     private DrawerLayout drawerLayout;
+    private LinearLayout floatingWindow;
     private NavigationView navigationView;
     private TextView navUsername, navIdNumber;
     private TextView noRoomsTextView;
     private LinearLayout roomsLayout;
-    private LinearLayout floatingWindow;
+
     private String uid;
     private Button faceRegisterButton;
 
@@ -73,8 +69,8 @@ public class Students_Home extends AppCompatActivity {
 
         // Get user ID from intent
         uid = getIntent().getStringExtra("uid");
-        fetchStudentDetails(uid);
-        fetchStudentDetailed(uid);
+        fetchUserDetails(uid);
+        fetchUserDetailed(uid);
 
         // Fetch rooms and initialize location tracking
         fetchRoomsForToday();
@@ -165,7 +161,7 @@ public class Students_Home extends AppCompatActivity {
         }
     }
 
-    private void fetchStudentDetails(String uid) {
+    private void fetchUserDetails(String uid) {
         FirebaseFirestore.getInstance().collection("students").document(uid).get()
                 .addOnSuccessListener(document -> {
                     if (document.exists()) {
@@ -179,7 +175,7 @@ public class Students_Home extends AppCompatActivity {
                 .addOnFailureListener(e -> dashboardMessage.setText("Error fetching student details."));
     }
 
-    private void fetchStudentDetailed(String uid) {
+    private void fetchUserDetailed(String uid) {
         FirebaseFirestore.getInstance().collection("students").document(uid).get()
                 .addOnSuccessListener(document -> {
                     if (document.exists()) {
@@ -277,7 +273,6 @@ public class Students_Home extends AppCompatActivity {
 
         timeOutButton.setOnClickListener(v -> {
             Intent intent = new Intent(Students_Home.this, ScanQRTimeOut.class);
-            showFeedbackDialog(roomId);
             intent.putExtra("roomId", roomId);
             startActivity(intent);
             floatingWindow.setVisibility(View.GONE);
@@ -327,55 +322,4 @@ public class Students_Home extends AppCompatActivity {
                 .addOnFailureListener(e -> Log.e("AttendanceStatus", "❌ Error checking attendance: ", e));
     }
 
-    private void showFeedbackDialog(String roomId) {
-        // Inflate the custom layout for the dialog
-        View dialogView = getLayoutInflater().inflate(R.layout.activity_feedback_dialog, null);
-        EditText feedbackEditText = dialogView.findViewById(R.id.feedbackEditText);
-        Button cancelButton = dialogView.findViewById(R.id.cancelButton);
-        Button submitButton = dialogView.findViewById(R.id.submitButton);
-
-        // Create and show the dialog
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setView(dialogView);
-        AlertDialog dialog = builder.create();
-        dialog.show();
-
-        // Handle cancel button click
-        cancelButton.setOnClickListener(v -> dialog.dismiss());
-
-        // Handle submit button click
-        submitButton.setOnClickListener(v -> {
-            String feedback = feedbackEditText.getText().toString().trim();
-            if (!feedback.isEmpty()) {
-                // Save feedback to Firestore
-                saveFeedback(roomId, feedback);
-                dialog.dismiss();
-                proceedWithTimeOut(roomId); // Proceed with the time-out process
-            } else {
-                Toast.makeText(this, "Feedback cannot be empty!", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void saveFeedback(String roomId, String feedback) {
-        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        Map<String, Object> feedbackData = new HashMap<>();
-        feedbackData.put("uid", uid);
-        feedbackData.put("roomId", roomId);
-        feedbackData.put("feedback", feedback);
-        feedbackData.put("timestamp", new Date());
-
-        db.collection("feedback")
-                .add(feedbackData)
-                .addOnSuccessListener(documentReference -> Log.d(TAG, "Feedback saved successfully"))
-                .addOnFailureListener(e -> Log.e(TAG, "Error saving feedback", e));
-    }
-
-    private void proceedWithTimeOut(String roomId) {
-        Intent intent = new Intent(Students_Home.this, ScanQRTimeOut.class);
-        intent.putExtra("roomId", roomId);
-        startActivity(intent);
-    }
 }

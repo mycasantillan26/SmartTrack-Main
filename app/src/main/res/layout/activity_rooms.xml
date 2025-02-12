@@ -110,17 +110,24 @@
             android:layout_marginTop="80dp"
             android:background="@android:color/darker_gray" />
 
+        <ScrollView
+            android:id="@+id/scrollView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/separator"
+            android:layout_marginBottom="86dp"
+            android:fillViewport="true">
 
         <!-- Rooms List -->
         <LinearLayout
             android:id="@+id/roomsLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/separator"
             android:layout_marginTop="16dp"
             android:orientation="vertical"
             android:padding="16dp"
             android:visibility="gone" />
+        </ScrollView>
 
         <!-- No Rooms Available Message -->
         <TextView

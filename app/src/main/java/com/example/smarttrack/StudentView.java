@@ -9,18 +9,17 @@ import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-public class ViewStudents extends AppCompatActivity {
+public class StudentView extends AppCompatActivity {
 
-    private static final String TAG = "ViewStudents";
+    private static final String TAG = "StudentView";
     private FirebaseFirestore db;
     private TableLayout tableLayout;
     private LinearLayout containerLayout;
+    private String roomId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,21 +30,20 @@ public class ViewStudents extends AppCompatActivity {
         containerLayout = findViewById(R.id.containerLayout);
         tableLayout = findViewById(R.id.studentsTable);
 
-        String roomId = getIntent().getStringExtra("roomId");
-
-        Log.d(TAG, "ViewStudents: Received roomId = " + roomId);
+        roomId = getIntent().getStringExtra("roomId");
 
         if (roomId == null || roomId.isEmpty()) {
-            Toast.makeText(this, "Room ID is missing!", Toast.LENGTH_LONG).show();
-            Log.e(TAG, "ViewStudents: Room ID is NULL or EMPTY!");
-            finish();
+            Log.e(TAG, "StudentView: Received NULL roomId");
+            Toast.makeText(this, "Error: Room ID is missing!", Toast.LENGTH_LONG).show();
+            finish(); // 🚨 Close the activity to prevent further errors
             return;
         }
+
+        Log.d(TAG, "StudentView: Successfully received roomId = " + roomId);
 
         fetchTeacherDetails(roomId);
         fetchStudentsFromRoom(roomId);
     }
-
 
     private void fetchTeacherDetails(String roomId) {
         Log.d(TAG, "Fetching teacher details for room ID: " + roomId);
@@ -111,8 +109,6 @@ public class ViewStudents extends AppCompatActivity {
 
         containerLayout.addView(teacherNameTextView, 0); // Add teacher name at the top
     }
-
-
 
     private void fetchStudentsFromRoom(String roomId) {
         String roomPath = "rooms/" + roomId + "/students";

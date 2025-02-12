@@ -23,11 +23,21 @@
         android:padding="8dp">
 
         <TextView
+            android:id="@+id/presentLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Presents: 0"
+            android:textSize="18sp"
+            android:textColor="@android:color/holo_green_dark"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
             android:id="@+id/lateLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Lates: 0"
             android:textSize="18sp"
+            android:textColor="@android:color/holo_orange_dark"
             android:layout_marginBottom="8dp" />
 
         <TextView
@@ -36,14 +46,7 @@
             android:layout_height="wrap_content"
             android:text="Absents: 0"
             android:textSize="18sp"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/presentLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Presents: 0"
-            android:textSize="18sp"
+            android:textColor="@android:color/holo_red_dark"
             android:layout_marginBottom="8dp" />
 
     </LinearLayout>

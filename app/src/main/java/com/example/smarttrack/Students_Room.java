@@ -87,7 +87,7 @@ public class Students_Room extends AppCompatActivity {
 
         // Setup Views
         setupUI();
-        fetchStudentDetailed(uid);
+        fetchUserDetailed(uid);
         fetchRooms();
     }
 
@@ -160,7 +160,7 @@ public class Students_Room extends AppCompatActivity {
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
     }
 
-    private void fetchStudentDetailed(String uid) {
+    private void fetchUserDetailed(String uid) {
         Log.d(TAG, "Fetching student details for UID: " + uid);
         FirebaseFirestore.getInstance().collection("students")
                 .document(uid)
@@ -233,7 +233,7 @@ public class Students_Room extends AppCompatActivity {
                 .addOnSuccessListener(studentDoc -> {
                     if (studentDoc.exists()) {
                         Log.d(TAG, "Student is part of room: " + roomId);
-                        createRoomButton(subjectCode, section, roomId);
+                        createRoomButton(subjectCode, section);
                     } else {
                         Log.d(TAG, "Student not part of room: " + roomId);
                     }
@@ -244,7 +244,7 @@ public class Students_Room extends AppCompatActivity {
     }
 
 
-    private void createRoomButton(String subjectCode, String section, String roomId) {
+    private void createRoomButton(String subjectCode, String section) {
         Log.d(TAG, "Creating button for room: " + subjectCode + " - " + section);
 
         Button roomButton = new Button(this);
@@ -288,7 +288,7 @@ public class Students_Room extends AppCompatActivity {
 
                         if (subjectCode != null && sectionName != null) {
                             Log.d(TAG, "Found section: " + subjectCode + " - " + sectionName);
-                            createSectionButton(subjectCode, sectionName, roomId);
+                            createSectionButton(subjectCode, sectionName);
                         } else {
                             Log.e(TAG, "Missing subjectCode or sectionName for student: " + studentId);
                             Toast.makeText(this, "No sections available for this student.", Toast.LENGTH_SHORT).show();
@@ -304,7 +304,7 @@ public class Students_Room extends AppCompatActivity {
                 });
     }
 
-    private void createSectionButton(String subjectCode, String sectionName, String roomId) {
+    private void createSectionButton(String subjectCode, String sectionName) {
         Log.d(TAG, "Creating button for: " + subjectCode + " - " + sectionName);
 
         Button sectionButton = new Button(this);

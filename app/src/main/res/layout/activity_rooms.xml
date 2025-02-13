@@ -35,6 +35,15 @@
                 android:textColor="@android:color/white"
                 android:textSize="20sp"
                 android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/logoIcon"
+                android:layout_width="70dp"
+                android:layout_height="40dp"
+                android:layout_gravity="end"
+                android:contentDescription="Logo Icon"
+                android:padding="5dp"
+                android:src="@drawable/circle_logo" />
         </androidx.appcompat.widget.Toolbar>
 
         <!-- Scan QR Button -->
@@ -96,17 +105,24 @@
             android:layout_marginTop="80dp"
             android:background="@android:color/darker_gray" />
 
+        <ScrollView
+            android:id="@+id/scrollView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/separator"
+            android:layout_marginBottom="86dp"
+            android:fillViewport="true">
 
         <!-- Rooms List -->
         <LinearLayout
             android:id="@+id/roomsLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/separator"
             android:layout_marginTop="16dp"
             android:orientation="vertical"
             android:padding="16dp"
             android:visibility="gone" />
+        </ScrollView>
 
         <!-- No Rooms Available Message -->
         <TextView

@@ -27,10 +27,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 import android.view.View;
 import android.widget.Toast;
@@ -43,7 +41,6 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 public class Students_Home extends AppCompatActivity {
     private static final String TAG = "Students_Home";
-    private static final int QR_CODE_REQUEST_CODE = 1001;
 
     private ImageView roomIcon;
     private ImageView reportIcon;
@@ -51,14 +48,14 @@ public class Students_Home extends AppCompatActivity {
     private TextView dashboardMessage;
     private TextView locationTextView;
     private LocationManager locationManager;
-
     private boolean locationDisplayed = false;
     private DrawerLayout drawerLayout;
+    private LinearLayout floatingWindow;
     private NavigationView navigationView;
     private TextView navUsername, navIdNumber;
     private TextView noRoomsTextView;
     private LinearLayout roomsLayout;
-    private LinearLayout floatingWindow;
+
     private String uid;
     private Button faceRegisterButton;
 
@@ -72,8 +69,8 @@ public class Students_Home extends AppCompatActivity {
 
         // Get user ID from intent
         uid = getIntent().getStringExtra("uid");
-        fetchStudentDetails(uid);
-        fetchStudentDetailed(uid);
+        fetchUserDetails(uid);
+        fetchUserDetailed(uid);
 
         // Fetch rooms and initialize location tracking
         fetchRoomsForToday();
@@ -164,7 +161,7 @@ public class Students_Home extends AppCompatActivity {
         }
     }
 
-    private void fetchStudentDetails(String uid) {
+    private void fetchUserDetails(String uid) {
         FirebaseFirestore.getInstance().collection("students").document(uid).get()
                 .addOnSuccessListener(document -> {
                     if (document.exists()) {
@@ -178,7 +175,7 @@ public class Students_Home extends AppCompatActivity {
                 .addOnFailureListener(e -> dashboardMessage.setText("Error fetching student details."));
     }
 
-    private void fetchStudentDetailed(String uid) {
+    private void fetchUserDetailed(String uid) {
         FirebaseFirestore.getInstance().collection("students").document(uid).get()
                 .addOnSuccessListener(document -> {
                     if (document.exists()) {

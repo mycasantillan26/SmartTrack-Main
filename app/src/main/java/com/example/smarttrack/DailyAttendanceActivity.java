@@ -89,27 +89,62 @@ public class DailyAttendanceActivity extends AppCompatActivity {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 if (convertView == null) {
-                    convertView = getLayoutInflater().inflate(
-                            R.layout.list_item_attendance,
-                            parent,
-                            false
-                    );
+                    convertView = getLayoutInflater().inflate(R.layout.list_item_attendance, parent, false);
                 }
+
+                TextView textRoomName      = convertView.findViewById(R.id.textRoomName);
+                TextView textTimeIn        = convertView.findViewById(R.id.textTimeIn);
+                TextView textTimeOut       = convertView.findViewById(R.id.textTimeOut);
+                TextView textStatusLabel   = convertView.findViewById(R.id.textStatusLabel);
+                TextView textStatusValue   = convertView.findViewById(R.id.textStatusValue);
 
                 String record = getItem(position);
-                TextView roomNameText = convertView.findViewById(R.id.roomNameText);
-                TextView timeDetailsText = convertView.findViewById(R.id.timeDetailsText);
-
                 if (record != null) {
+                    // Example of record:
+                    // "Room Name: Zairen (Kamunggay) | Time In: 12:10 am, Time Out: 12:33 am, Status: Present"
                     String[] parts = record.split(" \\| ");
                     if (parts.length >= 2) {
-                        roomNameText.setText(parts[0].replace("Room Name: ", "").trim());
-                        timeDetailsText.setText(parts[1].trim());
+                        textRoomName.setText(parts[0].replace("Room Name:", "").trim());
+
+                        // timeIn/timeOut/status
+                        String[] detailParts = parts[1].split(",");
+                        if (detailParts.length >= 3) {
+                            textTimeIn.setText(detailParts[0].trim());   // "Time In: 12:10 am"
+                            textTimeOut.setText(detailParts[1].trim()); // "Time Out: 12:33 am"
+
+                            // The 3rd part is something like "Status: Present"
+                            String statusRaw = detailParts[2].trim();    // e.g. "Status: Present"
+
+                            // If you only want "Present" or "Late" etc.
+                            // you can remove "Status:" to just keep the value.
+                            // e.g. "Present"
+                            String statusValueOnly = statusRaw.replace("Status:", "").trim();
+                            textStatusValue.setText(statusValueOnly);
+
+                            // Make the label "Status" small black text:
+                            textStatusLabel.setText("Status");
+                            textStatusLabel.setTextColor(getResources().getColor(android.R.color.black));
+
+                            // Then color the big status text:
+                            if (statusValueOnly.equalsIgnoreCase("Present")) {
+                                textStatusValue.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+                            } else if (statusValueOnly.equalsIgnoreCase("Late")) {
+                                textStatusValue.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                            } else {
+                                textStatusValue.setTextColor(getResources().getColor(android.R.color.black));
+                            }
+                        }
                     }
                 }
+
                 return convertView;
             }
+
+
+
         };
+
+
         dailyAttendanceList.setAdapter(listViewAdapter);
     }
 
@@ -218,15 +253,16 @@ public class DailyAttendanceActivity extends AppCompatActivity {
                 .collection("students")
                 .document(studentUid)
                 .collection("attendance")
-                .get() // ✅ Get all records and filter manually
+                .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     attendanceRecords.clear();
                     SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
 
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        Timestamp date = document.getTimestamp("date"); // ✅ Ensure `date` field exists
+                        Timestamp date = document.getTimestamp("date");
                         Timestamp timeIn = document.getTimestamp("timeIn");
                         Timestamp timeOut = document.getTimestamp("timeOut");
+                        String status = document.getString("status"); // Retrieve the status field
 
                         // Convert Firestore timestamp to YYYYMMDD format for comparison
                         if (date != null && dateFormat.format(date.toDate()).equals(todayDate)) {
@@ -234,6 +270,7 @@ public class DailyAttendanceActivity extends AppCompatActivity {
 
                             String timeDetails = "Time In: " + (timeIn != null ? timeFormat.format(timeIn.toDate()) : "N/A");
                             timeDetails += ", Time Out: " + (timeOut != null ? timeFormat.format(timeOut.toDate()) : "N/A");
+                            timeDetails += ", Status: " + (status != null ? status : "N/A"); // Add the status to the details
 
                             String record = "Room Name: " + roomNames.get(roomIds.indexOf(roomId)) + " | " + timeDetails;
                             attendanceRecords.add(record);
@@ -254,6 +291,7 @@ public class DailyAttendanceActivity extends AppCompatActivity {
                     showNoRecordsMessage("Error fetching attendance.");
                 });
     }
+
 
 
     private void showNoRecordsMessage(String message) {

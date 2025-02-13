@@ -111,7 +111,6 @@ public class ViewStudents extends AppCompatActivity {
     }
 
 
-
     private void fetchStudentsFromRoom(String roomId) {
         String roomPath = "rooms/" + roomId + "/students";
         Log.d(TAG, "Fetching students from path: " + roomPath);

@@ -9,10 +9,12 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -114,10 +116,9 @@ public class Students_Room extends AppCompatActivity {
 
 // Set click listener for scanQRButton
         scanQRButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Students_Room.this, GenerateCode.class);
+            Intent intent = new Intent(Students_Room.this, ScanQRActivity.class);
             startActivity(intent);
         });
-
 
 
         reportIcon.setOnClickListener(v -> {
@@ -218,7 +219,6 @@ public class Students_Room extends AppCompatActivity {
                     Log.e(TAG, "Error fetching rooms: " + e.getMessage());
                 });
     }
-
 
 
     private void checkStudentInRoom(String roomId, String subjectCode, String section) {

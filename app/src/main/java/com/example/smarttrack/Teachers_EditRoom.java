@@ -32,7 +32,7 @@ public class Teachers_EditRoom extends AppCompatActivity {
 
     private EditText subjectNameField, subjectCodeField, sectionField;
     private EditText startDateField, endDateField, startTimeField, endTimeField, numberOfStudentsField;
-    private Button createRoomButton, backButton;
+    private Button updateRoomButton, backButton;
     private FirebaseFirestore firestore;
     private Button mondayButton, tuesdayButton, wednesdayButton, thursdayButton, fridayButton, saturdayButton, sundayButton;
     private String roomId;
@@ -53,7 +53,7 @@ public class Teachers_EditRoom extends AppCompatActivity {
         startTimeField = findViewById(R.id.startTimeField);
         endTimeField = findViewById(R.id.endTimeField);
         numberOfStudentsField = findViewById(R.id.numberOfStudentsField);
-        createRoomButton = findViewById(R.id.createRoomButton);
+        updateRoomButton = findViewById(R.id.createRoomButton);
         backButton = findViewById(R.id.backButton);
         mondayButton = findViewById(R.id.mondayButton);
         tuesdayButton = findViewById(R.id.tuesdayButton);
@@ -63,7 +63,8 @@ public class Teachers_EditRoom extends AppCompatActivity {
         saturdayButton = findViewById(R.id.saturdayButton);
         sundayButton = findViewById(R.id.sundayButton);
 
-        createRoomButton.setText("Update Room");
+        updateRoomButton.setText("Update Room");
+        updateRoomButton.setEnabled(true);
 
         roomId = getIntent().getStringExtra("roomId");
 
@@ -87,7 +88,7 @@ public class Teachers_EditRoom extends AppCompatActivity {
         startTimeField.setOnClickListener(v -> showTimePicker(startTimeField));
         endTimeField.setOnClickListener(v -> showTimePicker(endTimeField));
 
-        createRoomButton.setOnClickListener(v -> updateRoom());
+        updateRoomButton.setOnClickListener(v -> updateRoom());
 
         setupDayButtons();
     }
@@ -110,11 +111,15 @@ public class Teachers_EditRoom extends AppCompatActivity {
                 if (startTime != null) startTimeField.setText(timeFormat.format(startTime.toDate()));
                 if (endTime != null) endTimeField.setText(timeFormat.format(endTime.toDate()));
 
-                List<String> schedule = (List<String>) document.get("schedule");
-                if (schedule != null) {
+                // Ensure schedule is stored as a List<String>
+                Object scheduleObject = document.get("schedule");
+                if (scheduleObject instanceof List) {
+                    List<String> schedule = (List<String>) scheduleObject;
                     for (String day : schedule) {
                         highlightButton(getButtonByDay(day));
                     }
+                } else {
+                    Log.e(TAG, "Invalid schedule format in Firestore");
                 }
             } else {
                 Toast.makeText(this, "Room not found!", Toast.LENGTH_SHORT).show();
@@ -149,8 +154,10 @@ public class Teachers_EditRoom extends AppCompatActivity {
     }
 
     private void highlightButton(Button button) {
-        button.setBackgroundResource(R.drawable.btn_gold);
-        button.setTag("active");
+        if (button != null) {
+            button.setBackgroundResource(R.drawable.btn_gold);
+            button.setTag("active");
+        }
     }
 
     private Button getButtonByDay(String dayName) {
@@ -183,13 +190,6 @@ public class Teachers_EditRoom extends AppCompatActivity {
     }
 
     private void updateRoom() {
-        if (roomId == null || roomId.isEmpty()) {
-            Toast.makeText(this, "Error: Room ID is missing!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        Log.d(TAG, "Updating room with ID: " + roomId); // Debug log
-
         Map<String, Object> updatedData = new HashMap<>();
         updatedData.put("subjectName", subjectNameField.getText().toString().trim());
         updatedData.put("subjectCode", subjectCodeField.getText().toString().trim());
@@ -197,11 +197,7 @@ public class Teachers_EditRoom extends AppCompatActivity {
         updatedData.put("startDate", startDateField.getText().toString().trim());
         updatedData.put("endDate", endDateField.getText().toString().trim());
         updatedData.put("numberOfStudents", numberOfStudentsField.getText().toString().trim());
-        updatedData.put("schedule", getActiveDays());
-
-        // Convert time fields to Firestore Timestamps
-        updatedData.put("startTime", convertToTimestamp(startTimeField.getText().toString().trim()));
-        updatedData.put("endTime", convertToTimestamp(endTimeField.getText().toString().trim()));
+        updatedData.put("schedule", getActiveDays()); // Ensure schedule is saved as an array
 
         firestore.collection("rooms").document(roomId)
                 .update(updatedData)
@@ -210,28 +206,21 @@ public class Teachers_EditRoom extends AppCompatActivity {
                     finish();
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Error updating room: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     Log.e(TAG, "Error updating room in Firestore", e);
+                    Toast.makeText(this, "Error updating room", Toast.LENGTH_SHORT).show();
                 });
-    }
-
-    // Convert Time String to Firestore Timestamp
-    private Timestamp convertToTimestamp(String timeString) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-            Date date = sdf.parse(timeString);
-            return new Timestamp(date);
-        } catch (Exception e) {
-            Log.e(TAG, "Error converting time to timestamp", e);
-            return null;
-        }
     }
 
     private List<String> getActiveDays() {
         List<String> days = new ArrayList<>();
-        for (Button btn : new Button[]{mondayButton, tuesdayButton, wednesdayButton, thursdayButton, fridayButton, saturdayButton, sundayButton}) {
-            if ("active".equals(btn.getTag())) days.add(btn.getText().toString());
-        }
+        if ("active".equals(mondayButton.getTag())) days.add("Monday");
+        if ("active".equals(tuesdayButton.getTag())) days.add("Tuesday");
+        if ("active".equals(wednesdayButton.getTag())) days.add("Wednesday");
+        if ("active".equals(thursdayButton.getTag())) days.add("Thursday");
+        if ("active".equals(fridayButton.getTag())) days.add("Friday");
+        if ("active".equals(saturdayButton.getTag())) days.add("Saturday");
+        if ("active".equals(sundayButton.getTag())) days.add("Sunday");
+
         return days;
     }
 }

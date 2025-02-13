@@ -105,6 +105,7 @@ public class InputCodeActivity extends AppCompatActivity {
                 });
     }
 
+
     private void saveStudentToRoom(String roomId, String subjectCode, String section, String teacherId) {
         String studentId = FirebaseAuth.getInstance().getUid();
 

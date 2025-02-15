@@ -321,36 +321,6 @@ public class Teachers_DailyAttendanceActivity extends AppCompatActivity {
     }
 
 
-
-
-    private void showEventPopup(Context context, String eventId, String title, String date, String startTime, String endTime, String location) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        LayoutInflater inflater = LayoutInflater.from(context);
-        View dialogView = inflater.inflate(R.layout.activity_event_rooms, null);
-        builder.setView(dialogView);
-
-        TextView eventTitle = dialogView.findViewById(R.id.eventTitle);
-        TextView eventDate = dialogView.findViewById(R.id.eventDate);
-        TextView eventTime = dialogView.findViewById(R.id.eventTime);
-        TextView eventLocation = dialogView.findViewById(R.id.eventLocation);
-        LinearLayout roomListContainer = dialogView.findViewById(R.id.studentListContainer); // Using same container for rooms
-        ProgressBar popupLoadingIndicator = dialogView.findViewById(R.id.popupLoadingIndicator);
-        Button closeButton = dialogView.findViewById(R.id.closePopupButton);
-
-        eventTitle.setText(title);
-        eventDate.setText("Date: " + date);
-        eventTime.setText("Time: " + startTime + " - " + endTime);
-        eventLocation.setText("Location: " + location);
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
-
-        closeButton.setOnClickListener(v -> dialog.dismiss());
-
-        // Fetch and display rooms for this event
-        fetchEventRooms(eventId, roomListContainer, popupLoadingIndicator, context);
-    }
-
     private void fetchEventRooms(String eventId, LinearLayout roomListContainer, ProgressBar popupLoadingIndicator, Context context) {
         popupLoadingIndicator.setVisibility(View.VISIBLE);
         roomListContainer.removeAllViews();

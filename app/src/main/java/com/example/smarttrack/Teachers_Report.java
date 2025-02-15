@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
-
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -31,7 +30,6 @@ public class Teachers_Report extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_reports);
 
-
         uid = getIntent().getStringExtra("uid");
 
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -39,7 +37,6 @@ public class Teachers_Report extends AppCompatActivity {
         getSupportActionBar().setDisplayShowTitleEnabled(false);
         TextView toolbarTitle = findViewById(R.id.toolbarTitle);
         toolbarTitle.setText("Report");
-
 
         roomIcon = findViewById(R.id.roomIcon);
         homeIcon = findViewById(R.id.homeIcon);
@@ -61,10 +58,7 @@ public class Teachers_Report extends AppCompatActivity {
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
 
-
-        String uid = getIntent().getStringExtra("uid");
         fetchUserDetails(uid);
-
 
         Button logoutButton = findViewById(R.id.logoutButton);
         logoutButton.setOnClickListener(v -> {
@@ -75,32 +69,39 @@ public class Teachers_Report extends AppCompatActivity {
             finish();
         });
 
-
-
         roomIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Room");
             Intent intent = new Intent(Teachers_Report.this, Teachers_Room.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);
         });
 
-
         homeIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Home");
             Intent intent = new Intent(Teachers_Report.this, Teachers_Home.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);
         });
 
-
         scheduleIcon.setOnClickListener(v -> {
-            getSupportActionBar().setTitle("Calendar");
             Intent intent = new Intent(Teachers_Report.this, Teachers_Calendar.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);
+        });
+
+        dailyAttendanceButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Teachers_Report.this, Teachers_DailyAttendanceActivity.class);
+            intent.putExtra("uid", uid);
+            startActivity(intent);
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        });
+
+        monthlyAttendanceButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Teachers_Report.this, Teachers_MonthlyAttendanceActivity.class);
+            intent.putExtra("uid", uid);
+            startActivity(intent);
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         });
     }
 
@@ -123,5 +124,3 @@ public class Teachers_Report extends AppCompatActivity {
                 });
     }
 }
-
-

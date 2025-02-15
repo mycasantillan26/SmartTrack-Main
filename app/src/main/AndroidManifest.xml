@@ -198,5 +198,14 @@
             android:name=".MonthlyAttendanceActivity"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Teachers_DailyAttendanceActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".EventRoomsActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+
     </application>
 </manifest>

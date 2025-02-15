@@ -73,21 +73,35 @@ public class Students_EventDetails extends AppCompatActivity {
                 eventEndTimeField.setText(endTime != null ? endTime : "N/A");
                 selectedDateTextView.setText(eventDate != null ? "Event Date: " + eventDate : "Event Date: N/A");
 
-                // Get the list of room IDs from the "rooms" array in the event document
-                List<String> rooms = (List<String>) document.get("rooms");
-
-                if (rooms != null && !rooms.isEmpty()) {
-                    String firstRoomId = rooms.get(0); // Assuming the event is linked to the first room
-                    fetchSubjectName(firstRoomId);
-                } else {
-                    subjectField.setText("No associated subject");
-                }
+                // Fetch rooms from the event's subcollection
+                fetchRoomFromEvent(eventId);
             } else {
                 eventTitleField.setText("Error: Event not found");
             }
         }).addOnFailureListener(e -> {
             eventTitleField.setText("Error loading event");
         });
+    }
+
+    private void fetchRoomFromEvent(String eventId) {
+        db.collection("events").document(eventId).collection("rooms")
+                .limit(1) // Get only one room
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (!querySnapshot.isEmpty()) {
+                        String roomId = querySnapshot.getDocuments().get(0).getString("roomId");
+                        if (roomId != null) {
+                            fetchSubjectName(roomId);
+                        } else {
+                            subjectField.setText("No associated subject");
+                        }
+                    } else {
+                        subjectField.setText("No associated subject");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    subjectField.setText("Error fetching subject");
+                });
     }
 
     private void fetchSubjectName(String roomId) {

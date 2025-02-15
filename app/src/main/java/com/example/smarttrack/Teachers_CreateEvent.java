@@ -89,16 +89,34 @@ public class Teachers_CreateEvent extends AppCompatActivity {
     }
 
     private void showDatePickerDialog() {
+        Calendar calendar = Calendar.getInstance();
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
         DatePickerDialog datePickerDialog = new DatePickerDialog(
                 this,
-                (view, year, month, dayOfMonth) -> {
-                    selectedYear = year;
-                    selectedMonth = month;
-                    selectedDay = dayOfMonth;
-                    selectedDateTextView.setText(String.format(Locale.getDefault(), "Selected Date: %04d-%02d-%02d", year, month + 1, dayOfMonth));
+                (view, selectedYear, selectedMonth, selectedDay) -> {
+                    // Validate selected date
+                    Calendar selectedDate = Calendar.getInstance();
+                    selectedDate.set(selectedYear, selectedMonth, selectedDay);
+
+                    if (selectedDate.before(calendar)) {
+                        Toast.makeText(this, "Cannot select a past date", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    this.selectedYear = selectedYear;
+                    this.selectedMonth = selectedMonth;
+                    this.selectedDay = selectedDay;
+                    selectedDateTextView.setText(String.format(Locale.getDefault(), "Selected Date: %04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay));
                 },
-                selectedYear, selectedMonth, selectedDay
+                year, month, day
         );
+
+        // Prevent selecting past dates
+        datePickerDialog.getDatePicker().setMinDate(calendar.getTimeInMillis());
+
         datePickerDialog.show();
     }
 
@@ -109,10 +127,26 @@ public class Teachers_CreateEvent extends AppCompatActivity {
 
         TimePickerDialog timePickerDialog = new TimePickerDialog(
                 this,
-                (view, hourOfDay, minuteOfHour) -> timeButton.setText(String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minuteOfHour)),
-                hour,
-                minute,
-                false
+                (view, selectedHour, selectedMinute) -> {
+                    String formattedTime = String.format(Locale.getDefault(), "%02d:%02d", selectedHour, selectedMinute);
+
+                    if (timeButton == endTimePicker) {
+                        String startTime = startTimePicker.getText().toString();
+                        if (!startTime.isEmpty()) {
+                            String[] startParts = startTime.split(":");
+                            int startHour = Integer.parseInt(startParts[0]);
+                            int startMinute = Integer.parseInt(startParts[1]);
+
+                            if (selectedHour < startHour || (selectedHour == startHour && selectedMinute < startMinute)) {
+                                Toast.makeText(this, "End time must be after start time", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                        }
+                    }
+
+                    timeButton.setText(formattedTime);
+                },
+                hour, minute, false
         );
         timePickerDialog.show();
     }
@@ -145,8 +179,10 @@ public class Teachers_CreateEvent extends AppCompatActivity {
         boolean[] checkedRooms = new boolean[subjectNames.size()];
         List<String> selectedSubjectNames = new ArrayList<>();
 
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select Rooms");
+
         builder.setMultiChoiceItems(subjectNames.toArray(new String[0]), checkedRooms, (dialog, which, isChecked) -> {
             if (isChecked) {
                 selectedSubjectNames.add(subjectNames.get(which));
@@ -187,7 +223,10 @@ public class Teachers_CreateEvent extends AppCompatActivity {
             return;
         }
 
-        if (!allDay && (startTime.isEmpty() || endTime.isEmpty())) {
+        if (allDay) {
+            startTime = "08:00";
+            endTime = "17:00";
+        } else if (startTime.isEmpty() || endTime.isEmpty()) {
             Toast.makeText(this, "Please select start and end times", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -204,11 +243,10 @@ public class Teachers_CreateEvent extends AppCompatActivity {
         eventData.put("title", eventTitle);
         eventData.put("description", eventDesc);
         eventData.put("location", location);
-        eventData.put("rooms", selectedRoomIds); // Save Room Document IDs
         eventData.put("notify", notify);
         eventData.put("wholeDay", allDay);
         eventData.put("eventDate", eventDate);
-        eventData.put("teacherId", teacherId); // Save teacher's UID
+        eventData.put("teacherId", teacherId);
 
         if (allDay) {
             eventData.put("startTime", "08:00");
@@ -220,12 +258,25 @@ public class Teachers_CreateEvent extends AppCompatActivity {
 
         // Save the event to Firestore
         firestore.collection("events")
-                .add(eventData) // Room Document IDs will be stored here
+                .add(eventData)
                 .addOnSuccessListener(documentReference -> {
+                    saveRoomsToSubcollection(documentReference.getId()); // Store rooms in sub-collection
                     Toast.makeText(Teachers_CreateEvent.this, "Event created successfully!", Toast.LENGTH_SHORT).show();
                     finish();
                 })
                 .addOnFailureListener(e ->
                         Toast.makeText(Teachers_CreateEvent.this, "Failed to create event: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    // Save selected rooms to the "rooms" sub-collection
+    private void saveRoomsToSubcollection(String eventId) {
+        for (String roomId : selectedRoomIds) {
+            Map<String, Object> roomData = new HashMap<>();
+            roomData.put("roomId", roomId);
+
+            firestore.collection("events").document(eventId).collection("rooms")
+                    .document(roomId)
+                    .set(roomData);
+        }
     }
 }

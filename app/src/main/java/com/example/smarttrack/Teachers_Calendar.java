@@ -182,7 +182,7 @@ public class Teachers_Calendar extends AppCompatActivity implements EventsAdapte
                         if (eventDate != null && eventDate.matches("\\d{4}-\\d{2}-\\d{2}")) {
                             try {
                                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                                Date date = sdf.parse(eventDate); // Convert string to Date
+                                Date date = sdf.parse(eventDate);
                                 Calendar calendar = Calendar.getInstance();
                                 calendar.setTime(date);
 
@@ -191,7 +191,8 @@ public class Teachers_Calendar extends AppCompatActivity implements EventsAdapte
 
                                 // **FILTER EVENTS FOR SELECTED MONTH & YEAR**
                                 if (year == selectedYear && month == selectedMonth) {
-                                    eventList.add(event); // Add only matching events
+                                    fetchRoomsForEvent(event.getId(), event); // Fetch rooms from sub-collection
+                                    eventList.add(event);
 
                                     int day = calendar.get(Calendar.DAY_OF_MONTH);
                                     CalendarDay calendarDay = CalendarDay.from(year, month, day);
@@ -224,7 +225,18 @@ public class Teachers_Calendar extends AppCompatActivity implements EventsAdapte
                 });
     }
 
-
+    private void fetchRoomsForEvent(String eventId, Event event) {
+        FirebaseFirestore.getInstance().collection("events").document(eventId).collection("rooms")
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<String> roomIds = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : querySnapshot) {
+                        roomIds.add(doc.getString("roomId"));
+                    }
+                    event.setRooms(roomIds);
+                    eventsAdapter.notifyDataSetChanged();
+                });
+    }
 
     private void addEventIndicatorsToCalendar(HashSet<CalendarDay> eventDays) {
             calendarView.addDecorator(new EventDecorator(eventDays, Color.RED)); // Red dots for events
@@ -351,6 +363,4 @@ public class Teachers_Calendar extends AppCompatActivity implements EventsAdapte
 
         fetchEvents(currentYear, currentMonth); // Refresh the events
     }
-
-
 }

@@ -164,28 +164,37 @@ public class Students_Calendar extends AppCompatActivity {
 
     private void fetchEvents(int selectedYear, int selectedMonth) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        db.collection("rooms").get().addOnSuccessListener(roomsSnapshot -> {
-            List<String> studentRooms = new ArrayList<>();
-            for (QueryDocumentSnapshot roomDoc : roomsSnapshot) {
-                String roomId = roomDoc.getId();
-                db.collection("rooms").document(roomId).collection("students").document(uid).get()
-                        .addOnSuccessListener(studentDoc -> {
-                            if (studentDoc.exists()) {
-                                studentRooms.add(roomId);
-                                fetchFilteredEventsForRooms(studentRooms, selectedYear, selectedMonth);
-                            }
-                        });
-            }
-        });
-    }
+        List<String> studentRooms = new ArrayList<>();
 
+        // Fetch all rooms the student is part of
+        db.collection("rooms")
+                .get()
+                .addOnSuccessListener(roomsSnapshot -> {
+                    for (QueryDocumentSnapshot roomDoc : roomsSnapshot) {
+                        String roomId = roomDoc.getId();
+                        db.collection("rooms").document(roomId).collection("students").document(uid)
+                                .get()
+                                .addOnSuccessListener(studentDoc -> {
+                                    if (studentDoc.exists()) {
+                                        studentRooms.add(roomId);
+                                    }
+                                });
+                    }
+                })
+                .addOnCompleteListener(task -> {
+                    // Once all rooms are retrieved, fetch events
+                    fetchFilteredEventsForRooms(studentRooms, selectedYear, selectedMonth);
+                });
+    }
 
     private void fetchFilteredEventsForRooms(List<String> studentRooms, int selectedYear, int selectedMonth) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
+        HashSet<String> addedEventIds = new HashSet<>(); // Prevent duplicate events
+        HashSet<CalendarDay> eventDays = new HashSet<>();
+        List<Event> newOrEditedEvents = new ArrayList<>();
+
         db.collection("events").get().addOnSuccessListener(eventsSnapshot -> {
-            List<Event> newOrEditedEvents = new ArrayList<>();
             eventList.clear();
-            HashSet<CalendarDay> eventDays = new HashSet<>();
 
             for (QueryDocumentSnapshot eventDoc : eventsSnapshot) {
                 Event event = eventDoc.toObject(Event.class);
@@ -193,50 +202,53 @@ public class Students_Calendar extends AppCompatActivity {
                 String eventDate = eventDoc.getString("eventDate");
                 boolean notify = Boolean.TRUE.equals(eventDoc.getBoolean("notify")); // Get the notify field
 
-                List<String> eventRooms = (List<String>) eventDoc.get("rooms");
-
-                if (eventRooms != null && eventDate != null) {
+                if (eventDate != null) {
                     try {
                         // Convert eventDate (YYYY-MM-DD) to year and month
                         String[] dateParts = eventDate.split("-");
                         int eventYear = Integer.parseInt(dateParts[0]);
-                        int eventMonth = Integer.parseInt(dateParts[1]) - 1; // CalendarDay uses 0-based months
+                        int eventMonth = Integer.parseInt(dateParts[1]) - 1; // Calendar uses 0-based months
                         int eventDay = Integer.parseInt(dateParts[2]);
 
                         // **Filter by selected year & month**
                         if (eventYear == selectedYear && eventMonth == selectedMonth) {
-                            for (String studentRoom : studentRooms) {
-                                if (eventRooms.contains(studentRoom)) {
-                                    if (!eventList.contains(event)) {
-                                        eventList.add(event);
-                                        eventDays.add(CalendarDay.from(eventYear, eventMonth, eventDay));
+                            String eventId = eventDoc.getId();
 
-                                        // Only add events to newOrEditedEvents if notify is true
-                                        if (notify) {
-                                            newOrEditedEvents.add(event);
+                            db.collection("events").document(eventId).collection("rooms").get()
+                                    .addOnSuccessListener(roomSnapshots -> {
+                                        List<String> eventRooms = new ArrayList<>();
+                                        for (QueryDocumentSnapshot roomDoc : roomSnapshots) {
+                                            eventRooms.add(roomDoc.getString("roomId")); // Fetch room IDs
                                         }
-                                    }
-                                    break;
-                                }
-                            }
+
+                                        for (String studentRoom : studentRooms) {
+                                            if (eventRooms.contains(studentRoom) && !addedEventIds.contains(eventId)) {
+                                                // Add event **only once**
+                                                eventList.add(event);
+                                                eventDays.add(CalendarDay.from(eventYear, eventMonth, eventDay));
+                                                addedEventIds.add(eventId); // Prevent duplicates
+
+                                                // Only add events to newOrEditedEvents if notify is true
+                                                if (notify) {
+                                                    newOrEditedEvents.add(event);
+                                                }
+                                                break; // Prevent multiple additions of the same event
+                                            }
+                                        }
+
+                                        // **Update UI only once after processing all events**
+                                        eventsAdapter.notifyDataSetChanged();
+                                        addEventIndicatorsToCalendar(eventDays);
+                                        scheduleRemindersForEvents(newOrEditedEvents);
+                                    });
                         }
                     } catch (Exception e) {
                         e.printStackTrace(); // Log errors
                     }
                 }
             }
-
-            // Schedule reminders only for events with notify = true
-            scheduleRemindersForEvents(newOrEditedEvents);
-
-            System.out.println("📌 Filtered Events for " + selectedYear + "-" + (selectedMonth + 1) + ": " + eventList.size());
-            eventsAdapter.notifyDataSetChanged();
-            addEventIndicatorsToCalendar(eventDays);
         });
     }
-
-
-
 
     private void addEventIndicatorsToCalendar(HashSet<CalendarDay> eventDays) {
         studentCalendarView.addDecorator(new EventDecorator(eventDays, Color.RED)); // Red dots for events
@@ -292,15 +304,4 @@ public class Students_Calendar extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        // Refresh the event list
-        Calendar currentCalendar = Calendar.getInstance();
-        int currentYear = currentCalendar.get(Calendar.YEAR);
-        int currentMonth = currentCalendar.get(Calendar.MONTH); // 0-based index
-
-        fetchEvents(currentYear, currentMonth); // Reload events
-    }
 }

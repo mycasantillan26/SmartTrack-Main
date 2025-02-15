@@ -1,6 +1,7 @@
 package com.example.smarttrack;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
@@ -11,24 +12,32 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import android.view.View;
 import android.widget.Toast;
@@ -74,6 +83,7 @@ public class Students_Home extends AppCompatActivity {
 
         // Fetch rooms and initialize location tracking
         fetchRoomsForToday();
+        fetchEventsForToday();
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         requestLocationPermission();
     }
@@ -151,13 +161,13 @@ public class Students_Home extends AppCompatActivity {
         }
     }
 
-    private void getAddressFromLocation(double latitude, double longitude) {
+    private String getAddressFromLocation(double latitude, double longitude) {
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
         try {
             List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
-            locationTextView.setText(addresses.isEmpty() ? "Unable to fetch address." : "Location: " + addresses.get(0).getAddressLine(0));
+            return (addresses.isEmpty()) ? "Unknown Location" : addresses.get(0).getAddressLine(0);
         } catch (IOException e) {
-            locationTextView.setText("Error fetching address.");
+            return "Error fetching address";
         }
     }
 
@@ -202,11 +212,19 @@ public class Students_Home extends AppCompatActivity {
                             String roomId = document.getId();
                             String subjectCode = document.getString("subjectCode");
                             String section = document.getString("section");
-                            List<String> schedule = (List<String>) document.get("schedule"); // Get schedule array
+                            Object scheduleObj = document.get("schedule");
+                            List<String> schedule = new ArrayList<>();
 
-                            // Only display rooms that are scheduled for today
-                            if (schedule != null && schedule.contains(today) && subjectCode != null && section != null) {
-                                checkStudentInRoom(roomId, subjectCode, section);
+                            if (scheduleObj instanceof List) {
+                                schedule = (List<String>) scheduleObj;
+                            } else if (scheduleObj instanceof String) {
+                                schedule = Collections.singletonList((String) scheduleObj);
+                            }
+
+                            if (schedule.contains(today)) {
+                                if (subjectCode != null && section != null) {
+                                    checkStudentInRoom(roomId, subjectCode, section);
+                                }
                             }
                         }
                     } else {
@@ -272,9 +290,7 @@ public class Students_Home extends AppCompatActivity {
         });
 
         timeOutButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Students_Home.this, ScanQRTimeOut.class);
-            intent.putExtra("roomId", roomId);
-            startActivity(intent);
+            showFeedbackDialog(roomId);
             floatingWindow.setVisibility(View.GONE);
             blurBackground.setVisibility(View.GONE);
         });
@@ -322,4 +338,293 @@ public class Students_Home extends AppCompatActivity {
                 .addOnFailureListener(e -> Log.e("AttendanceStatus", "❌ Error checking attendance: ", e));
     }
 
+    private void fetchEventsForToday() {
+        String todayDate = getTodayDate(); // Get today’s date in yyyy-MM-dd format
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        Log.d(TAG, "🔍 Fetching events for today: " + todayDate);
+
+        db.collection("events")
+                .whereEqualTo("eventDate", todayDate)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        Log.d(TAG, "✅ Found " + queryDocumentSnapshots.size() + " events for today.");
+
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            String eventId = document.getId();
+                            String title = document.getString("title");
+                            String location = document.getString("location");
+                            String startTime = document.getString("startTime");
+                            String endTime = document.getString("endTime");
+
+                            Log.d(TAG, "📌 Event: " + title + " | Location: " + location + " | Start: " + startTime + " | End: " + endTime);
+
+                            createEventCard(eventId, title, location, startTime, endTime);
+                        }
+                    } else {
+                        Log.d(TAG, "❌ No events found for today.");
+                    }
+                })
+                .addOnFailureListener(e -> Log.e(TAG, "🚨 Error fetching events: ", e));
+    }
+
+    private void createEventCard(String eventId, String title, String location, String startTime, String endTime) {
+        LinearLayout eventLayout = findViewById(R.id.eventLayout);
+
+        Button eventButton = new Button(this);
+        eventButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        eventButton.setText("📅 " + title + "\n📍 Location: " + location + "\n🕒 Time: " + startTime + " - " + endTime);
+        eventButton.setTextSize(16);
+        eventButton.setPadding(20, 20, 20, 20);
+        eventButton.setBackgroundResource(R.drawable.button_border);
+
+        eventButton.setOnClickListener(v -> showEventFloatingWindow(eventId));
+        runOnUiThread(() -> eventLayout.addView(eventButton));
+    }
+
+    private void showEventFloatingWindow(String eventId) {
+        View blurBackground = findViewById(R.id.blurBackground);
+        floatingWindow.setVisibility(View.VISIBLE);
+        blurBackground.setVisibility(View.VISIBLE);
+        roomsLayout.setVisibility(View.GONE);
+
+        Button timeInButton = findViewById(R.id.timeInButton);
+        Button timeOutButton = findViewById(R.id.timeOutButton);
+
+        timeInButton.setVisibility(View.GONE);
+        timeOutButton.setVisibility(View.GONE);
+
+        checkEventAttendanceStatus(eventId, timeInButton, timeOutButton);
+
+        timeInButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Students_Home.this, FaceRecognition.class);
+            intent.putExtra("eventId", eventId);
+            intent.putExtra("uid", uid);
+            startActivity(intent);
+            floatingWindow.setVisibility(View.GONE);
+            blurBackground.setVisibility(View.GONE);
+        });
+
+        timeOutButton.setOnClickListener(v -> {
+            showEventFeedbackDialog(eventId);
+            floatingWindow.setVisibility(View.GONE);
+            blurBackground.setVisibility(View.GONE);
+        });
+
+        findViewById(R.id.closeFloatingWindow).setOnClickListener(v -> {
+            floatingWindow.setVisibility(View.GONE);
+            blurBackground.setVisibility(View.GONE);
+            roomsLayout.setVisibility(View.VISIBLE);
+        });
+    }
+
+    private void checkEventAttendanceStatus(String eventId, Button timeInButton, Button timeOutButton) {
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        db.collection("events").document(eventId)
+                .collection("rooms") // ✅ Check which room the student is in
+                .get()
+                .addOnSuccessListener(eventRoomsSnapshot -> {
+                    if (eventRoomsSnapshot.isEmpty()) {
+                        debugMessage("❌ No rooms found for this event.");
+                        return;
+                    }
+
+                    for (DocumentSnapshot eventRoomDoc : eventRoomsSnapshot.getDocuments()) {
+                        String roomId = eventRoomDoc.getId();
+
+                        db.collection("events").document(eventId)
+                                .collection("rooms").document(roomId)
+                                .collection("students").document(uid)
+                                .collection("attendance")
+                                .orderBy("timeIn", Query.Direction.DESCENDING)
+                                .limit(1)
+                                .get()
+                                .addOnSuccessListener(queryDocumentSnapshots -> {
+                                    if (!queryDocumentSnapshots.isEmpty()) {
+                                        DocumentSnapshot documentSnapshot = queryDocumentSnapshots.getDocuments().get(0);
+                                        boolean hasTimeIn = documentSnapshot.contains("timeIn");
+                                        boolean hasTimeOut = documentSnapshot.contains("timeOut");
+
+                                        if (!hasTimeIn) {
+                                            debugMessage("✅ Student has not timed in yet. Showing Time In button.");
+                                            timeInButton.setVisibility(View.VISIBLE);
+                                            timeOutButton.setVisibility(View.GONE);
+                                        } else if (!hasTimeOut) {
+                                            debugMessage("✅ Student has timed in but not out. Showing Time Out button.");
+                                            timeInButton.setVisibility(View.GONE);
+                                            timeOutButton.setVisibility(View.VISIBLE);
+                                        } else {
+                                            debugMessage("✅ Student has already timed in and out. Hiding buttons.");
+                                            timeInButton.setVisibility(View.GONE);
+                                            timeOutButton.setVisibility(View.GONE);
+                                        }
+                                    } else {
+                                        debugMessage("✅ No attendance record found. Showing Time In button.");
+                                        timeInButton.setVisibility(View.VISIBLE);
+                                        timeOutButton.setVisibility(View.GONE);
+                                    }
+                                })
+                                .addOnFailureListener(e -> debugMessage("❌ Error checking attendance: " + e.getMessage()));
+                    }
+                })
+                .addOnFailureListener(e -> debugMessage("❌ Error fetching event rooms: " + e.getMessage()));
+    }
+
+
+    private String getTodayDate() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        return dateFormat.format(Calendar.getInstance().getTime());
+    }
+
+    private void showFeedbackDialog(String roomId) {
+        // Inflate the custom layout for the dialog
+        View dialogView = getLayoutInflater().inflate(R.layout.activity_feedback_dialog, null);
+        EditText feedbackEditText = dialogView.findViewById(R.id.feedbackEditText);
+        Button cancelButton = dialogView.findViewById(R.id.cancelButton);
+        Button submitButton = dialogView.findViewById(R.id.submitButton);
+
+        // Create and show the dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Handle cancel button click
+        cancelButton.setOnClickListener(v -> dialog.dismiss());
+
+        // Handle submit button click
+        submitButton.setOnClickListener(v -> {
+            String feedback = feedbackEditText.getText().toString().trim();
+            if (!feedback.isEmpty()) {
+                dialog.dismiss();
+                proceedWithTimeOut(roomId, feedback); // Proceed with the time-out process
+            } else {
+                Toast.makeText(this, "Feedback cannot be empty!", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showEventFeedbackDialog(String eventId) {
+        // Inflate the custom layout for the dialog
+        View dialogView = getLayoutInflater().inflate(R.layout.activity_feedback_dialog, null);
+        EditText feedbackEditText = dialogView.findViewById(R.id.feedbackEditText);
+        Button cancelButton = dialogView.findViewById(R.id.cancelButton);
+        Button submitButton = dialogView.findViewById(R.id.submitButton);
+
+        // Create and show the dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(dialogView);
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Handle cancel button click
+        cancelButton.setOnClickListener(v -> dialog.dismiss());
+
+        // Handle submit button click
+        submitButton.setOnClickListener(v -> {
+            String feedback = feedbackEditText.getText().toString().trim();
+            if (!feedback.isEmpty()) {
+                dialog.dismiss();
+                proceedWithEventTimeOut(eventId, feedback); // Proceed with the time-out process for events
+            } else {
+                Toast.makeText(this, "Feedback cannot be empty!", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
+    private void proceedWithTimeOut(String roomId, String feedback) {
+        Intent intent = new Intent(Students_Home.this, ScanQRTimeOut.class);
+        intent.putExtra("roomId", roomId);
+        intent.putExtra("feedback", feedback);
+        startActivity(intent);
+
+    }
+
+    private void proceedWithEventTimeOut(String eventId, String feedback) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            debugMessage("❌ Location permission not granted!");
+            return;
+        }
+
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+        double latitude = lastKnownLocation != null ? lastKnownLocation.getLatitude() : 0.0;
+        double longitude = lastKnownLocation != null ? lastKnownLocation.getLongitude() : 0.0;
+        String address = getAddressFromLocation(latitude, longitude); // Get string address
+
+        Timestamp timeOut = Timestamp.now();
+        saveTimeOutData(eventId, timeOut, latitude, longitude, address, feedback);
+    }
+
+    private void saveTimeOutData(String eventId, Timestamp timeOut, double latitude, double longitude, String address, String feedback) {
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        // Find the correct room for this student in the event
+        db.collection("events").document(eventId)
+                .collection("rooms")
+                .get()
+                .addOnSuccessListener(eventRoomsSnapshot -> {
+                    if (eventRoomsSnapshot.isEmpty()) {
+                        debugMessage("❌ No rooms found for this event. Time Out failed.");
+                        return;
+                    }
+
+                    for (DocumentSnapshot eventRoomDoc : eventRoomsSnapshot.getDocuments()) {
+                        String roomId = eventRoomDoc.getId(); // ✅ Get the Room ID
+
+                        // Check if the student is inside this event's room
+                        db.collection("events").document(eventId)
+                                .collection("rooms").document(roomId)
+                                .collection("students").document(uid)
+                                .collection("attendance")
+                                .orderBy("timeIn", Query.Direction.DESCENDING) // ✅ Find latest attendance
+                                .limit(1)
+                                .get()
+                                .addOnSuccessListener(attendanceDocs -> {
+                                    if (!attendanceDocs.isEmpty()) {
+                                        DocumentSnapshot attendanceDoc = attendanceDocs.getDocuments().get(0);
+                                        String attendanceId = attendanceDoc.getId(); // ✅ Get attendance document ID
+
+                                        // ✅ Update existing attendance record with timeOut data
+                                        Map<String, Object> timeOutData = new HashMap<>();
+                                        timeOutData.put("timeOut", timeOut);
+                                        timeOutData.put("locationTimeOut", new HashMap<String, Object>() {{
+                                            put("latitude", latitude);
+                                            put("longitude", longitude);
+                                        }});
+                                        timeOutData.put("address", address);
+                                        timeOutData.put("feedback", feedback);
+
+                                        db.collection("events").document(eventId)
+                                                .collection("rooms").document(roomId)
+                                                .collection("students").document(uid)
+                                                .collection("attendance").document(attendanceId) // ✅ Update same attendance record
+                                                .update(timeOutData)
+                                                .addOnSuccessListener(aVoid -> {
+                                                    debugMessage("✅ Time Out updated successfully in room: " + roomId + " at " + address);
+                                                })
+                                                .addOnFailureListener(e -> debugMessage("❌ Error updating Time Out: " + e.getMessage()));
+                                    } else {
+                                        debugMessage("❌ No existing attendance record found. Cannot time out.");
+                                    }
+                                })
+                                .addOnFailureListener(e -> debugMessage("❌ Error fetching attendance record: " + e.getMessage()));
+                    }
+                })
+                .addOnFailureListener(e -> debugMessage("❌ Error fetching event rooms: " + e.getMessage()));
+    }
+
+
+
+    private void debugMessage(String message) {
+        Log.d("DEBUG_LOG", message);
+        runOnUiThread(() -> Toast.makeText(Students_Home.this, message, Toast.LENGTH_SHORT).show());
+    }
 }

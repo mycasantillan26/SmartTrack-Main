@@ -56,6 +56,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -76,12 +77,12 @@ public class FaceRecognition extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private boolean isFaceRecognized = false;
     private String roomId;
+    private String eventId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_face_recognition);
-        requestLocationPermission();
 
         previewView = findViewById(R.id.previewView);
         instructionText = findViewById(R.id.instructionText);
@@ -99,8 +100,12 @@ public class FaceRecognition extends AppCompatActivity {
         roomId = getIntent().getStringExtra("roomId");
         debugMessage("🔥 Room ID: " + roomId);
 
+        eventId = getIntent().getStringExtra("eventId");
+        debugMessage("🔥 Event ID: " + eventId);
+
         loadDatabaseEmbeddings();
         startCamera();
+
     }
 
     private void startCamera() {
@@ -179,103 +184,12 @@ public class FaceRecognition extends AppCompatActivity {
             if (!isFaceRecognized) {
                 isFaceRecognized = true;
                 debugMessage("✅ Face recognized! Recording time-in...");
-                recordTimeIn(roomId, recognizedUid);
+                recordTimeIn(eventId, recognizedUid);
             }
         } else {
             debugMessage("❌ Face not recognized. Try again.");
         }
     }
-
-    private void recordTimeIn(String roomId, String recognizedUid) {
-        if (roomId == null || recognizedUid == null) {
-            debugMessage("❌ Error: Room ID or UID missing.");
-            return;
-        }
-
-        FirebaseFirestore.getInstance()
-                .collection("rooms").document(roomId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        Timestamp startTime = documentSnapshot.getTimestamp("startTime");
-                        if (startTime != null) {
-                            compareTimeAndRecord(roomId, recognizedUid, startTime);
-                        } else {
-                            debugMessage("⚠️ No startTime found for this room. Recording attendance without status.");
-                            compareTimeAndRecord(roomId, recognizedUid, null);
-                        }
-                    }
-                })
-                .addOnFailureListener(e -> debugMessage("❌ Error fetching room startTime."));
-    }
-
-    private void compareTimeAndRecord(String roomId, String recognizedUid, Timestamp startTime) {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            debugMessage("❌ Location permission not granted!");
-            return;
-        }
-
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-        double latitude = lastKnownLocation != null ? lastKnownLocation.getLatitude() : 0.0;
-        double longitude = lastKnownLocation != null ? lastKnownLocation.getLongitude() : 0.0;
-
-        Timestamp timeIn = Timestamp.now();
-        String status = determineStatus(timeIn, startTime);
-
-        saveAttendanceData(roomId, recognizedUid, timeIn, latitude, longitude, status);
-    }
-
-    private void saveAttendanceData(String roomId, String recognizedUid, Timestamp timeIn, Double latitude, Double longitude, String status) {
-        Map<String, Object> attendanceData = new HashMap<>();
-        attendanceData.put("timeIn", timeIn);
-        attendanceData.put("date", FieldValue.serverTimestamp()); // Date for filtering
-        attendanceData.put("status", status);
-
-        if (latitude != 0.0 && longitude != 0.0) {
-            Map<String, Object> locationData = new HashMap<>();
-            locationData.put("latitude", latitude);
-            locationData.put("longitude", longitude);
-            attendanceData.put("location", locationData);
-        }
-
-        FirebaseFirestore.getInstance()
-                .collection("rooms").document(roomId)
-                .collection("students").document(recognizedUid)
-                .collection("attendance")
-                .add(attendanceData)
-                .addOnSuccessListener(documentReference -> {
-                    debugMessage("✅ Time In recorded with status: " + status);
-                    goToHome();
-                })
-                .addOnFailureListener(e -> debugMessage("❌ Error: Time In failed."));
-    }
-
-
-    private String determineStatus(Timestamp timeIn, Timestamp startTime) {
-        if (startTime == null) return "Unknown"; // If no startTime is set in Firestore
-
-        Date startDate = startTime.toDate();
-        Date timeInDate = timeIn.toDate();
-
-        long difference = timeInDate.getTime() - startDate.getTime(); // Time difference in milliseconds
-
-        if (difference <= 0) {
-            return "On Time"; // Student clocked in at or before class start time
-        } else {
-            return "Late"; // Student clocked in after the class start time
-        }
-    }
-
-
-    private void requestLocationPermission() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-        }
-    }
-
-
 
     private String matchFace(float[] detectedEmbedding) {
         float minDistance = Float.MAX_VALUE;
@@ -470,12 +384,149 @@ public class FaceRecognition extends AppCompatActivity {
         }
     }
 
+    private void recordTimeIn(String eventId, String recognizedUid) {
+        if (eventId == null) {
+            debugMessage("❌ Error: Event ID missing.");
+            return;
+        }
 
+        if (recognizedUid == null) {
+            debugMessage("❌ Error: UID missing.");
+            return;
+        }
 
-    private void goToHome() {
-        startActivity(new Intent(FaceRecognition.this, Students_Home.class));
-        finish();
+        FirebaseFirestore.getInstance()
+                .collection("events").document(eventId)
+                .get()
+                .addOnSuccessListener(eventDoc -> {
+                    if (eventDoc.exists()) {
+                        String startTimeString = eventDoc.getString("startTime");
+                        String eventDateString = eventDoc.getString("eventDate");
+                        String location = eventDoc.getString("location");
+
+                        // Convert event start time from string to Timestamp
+                        Timestamp startTime = convertStringToTimestamp(eventDateString, startTimeString);
+
+                        if (startTime != null) {
+                            checkRoomMappingForEvent(eventId, recognizedUid, startTime, location);
+                        } else {
+                            debugMessage("❌ Error: Failed to parse start time.");
+                        }
+                    } else {
+                        debugMessage("❌ Error: Event not found.");
+                    }
+                })
+                .addOnFailureListener(e -> debugMessage("❌ Error fetching event details."));
     }
+
+    private void checkRoomMappingForEvent(String eventId, String recognizedUid, Timestamp startTime, String location) {
+        FirebaseFirestore.getInstance()
+                .collection("events").document(eventId)
+                .collection("rooms") // Fetch rooms mapped to the event
+                .get()
+                .addOnSuccessListener(eventRoomsSnapshot -> {
+                    if (eventRoomsSnapshot.isEmpty()) {
+                        debugMessage("❌ No rooms mapped to this event.");
+                        return;
+                    }
+
+                    for (DocumentSnapshot eventRoomDoc : eventRoomsSnapshot.getDocuments()) {
+                        String mappedRoomId = eventRoomDoc.getId();
+                        checkStudentInRoom(eventId, mappedRoomId, recognizedUid, startTime, location);
+                    }
+                })
+                .addOnFailureListener(e -> debugMessage("❌ Error fetching event rooms."));
+    }
+
+    private void checkStudentInRoom(String eventId, String mappedRoomId, String recognizedUid, Timestamp startTime, String location) {
+        FirebaseFirestore.getInstance()
+                .collection("rooms").document(mappedRoomId)
+                .collection("students").document(recognizedUid)
+                .get()
+                .addOnSuccessListener(studentDoc -> {
+                    if (studentDoc.exists()) {
+                        debugMessage("✅ Student found in room: " + mappedRoomId + ". Proceeding with attendance.");
+                        compareTimeAndRecord(eventId, mappedRoomId, recognizedUid, startTime, location);
+                    } else {
+                        debugMessage("❌ Student is NOT enrolled in room: " + mappedRoomId + ". Skipping.");
+                    }
+                })
+                .addOnFailureListener(e -> debugMessage("❌ Error checking student enrollment in rooms."));
+    }
+
+    private void compareTimeAndRecord(String eventId, String roomId, String recognizedUid, Timestamp startTime, String location) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            debugMessage("❌ Location permission not granted!");
+            return;
+        }
+
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+        double latitude = lastKnownLocation != null ? lastKnownLocation.getLatitude() : 0.0;
+        double longitude = lastKnownLocation != null ? lastKnownLocation.getLongitude() : 0.0;
+
+        Timestamp timeIn = Timestamp.now();
+        String status = determineStatus(timeIn, startTime);
+
+        saveAttendanceData(eventId, roomId, recognizedUid, timeIn, latitude, longitude, location, status);
+    }
+
+    private void saveAttendanceData(String eventId, String roomId, String recognizedUid, Timestamp timeIn, Double latitude, Double longitude, String location, String status) {
+        Map<String, Object> attendanceData = new HashMap<>();
+        attendanceData.put("timeIn", timeIn);
+        attendanceData.put("date", FieldValue.serverTimestamp()); // Date for filtering
+        attendanceData.put("status", status);
+        attendanceData.put("eventLocation", location);
+
+        if (latitude != 0.0 && longitude != 0.0) {
+            Map<String, Object> locationData = new HashMap<>();
+            locationData.put("latitude", latitude);
+            locationData.put("longitude", longitude);
+            attendanceData.put("locationTimeIn", locationData);
+        }
+
+        FirebaseFirestore.getInstance()
+                .collection("events").document(eventId)
+                .collection("rooms").document(roomId)
+                .collection("students").document(recognizedUid)
+                .collection("attendance")
+                .add(attendanceData)
+                .addOnSuccessListener(documentReference -> {
+                    debugMessage("✅ Time In recorded successfully with status: " + status + " at location: " + location);
+                    goToHome();
+                })
+                .addOnFailureListener(e -> debugMessage("❌ Error: Time In failed."));
+    }
+
+    private String determineStatus(Timestamp timeIn, Timestamp startTime) {
+        if (startTime == null) return "Unknown"; // If no startTime is set in Firestore
+
+        Date startDate = startTime.toDate();
+        Date timeInDate = timeIn.toDate();
+
+        long difference = timeInDate.getTime() - startDate.getTime(); // Time difference in milliseconds
+
+        if (difference <= 0) {
+            return "On Time"; // Student clocked in at or before class start time
+        } else {
+            return "Late"; // Student clocked in after the class start time
+        }
+    }
+
+    private Timestamp convertStringToTimestamp(String eventDate, String startTime) {
+        try {
+            String dateTimeString = eventDate + " " + startTime; // Example: "2025-02-14 12:00"
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+            Date parsedDate = dateFormat.parse(dateTimeString);
+
+            return new Timestamp(parsedDate);
+        } catch (Exception e) {
+            debugMessage("❌ Error parsing date: " + e.getMessage());
+            return null;
+        }
+    }
+
 
     private void debugMessage(String message) {
         Log.d("DEBUG_LOG", message); // ✅ Logs message to Logcat
@@ -491,4 +542,10 @@ public class FaceRecognition extends AppCompatActivity {
     private void updateInstruction(String instruction) {
         runOnUiThread(() -> instructionText.setText(instruction));
     }
+
+    private void goToHome() {
+        startActivity(new Intent(FaceRecognition.this, Students_Home.class));
+        finish();
+    }
+
 }

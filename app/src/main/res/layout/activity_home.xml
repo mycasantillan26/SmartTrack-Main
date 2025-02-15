@@ -117,17 +117,43 @@
             android:visibility="gone" />
 
         <LinearLayout
-            android:id="@+id/roomsLayout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/separator"
-            android:layout_alignParentBottom="true"
+            android:layout_height="match_parent"
+            android:layout_below="@+id/separator"
+            android:layout_above="@+id/faceRegisterButton"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:visibility="visible"
-            tools:ignore="NotSibling,VisualLintBounds">
+            android:padding="16dp">
+
+            <!-- Rooms Layout Scrollable -->
+            <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:id="@+id/roomsLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="10dp"/>
+            </androidx.core.widget.NestedScrollView>
+
+            <!-- Events Layout Scrollable -->
+            <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:id="@+id/eventLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="10dp"/>
+            </androidx.core.widget.NestedScrollView>
 
         </LinearLayout>
+
 
         <LinearLayout
             android:id="@+id/navigationBar"

@@ -19,15 +19,19 @@ import com.google.zxing.integration.android.IntentResult;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
 public class ScanQRTimeOut extends AppCompatActivity {
+    String feedback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_scan_qr);
+
+        feedback = getIntent().getStringExtra("feedback");
 
         // Lock orientation to portrait
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -147,9 +151,12 @@ public class ScanQRTimeOut extends AppCompatActivity {
                         Timestamp timeOut = documentSnapshot.getTimestamp("timeOut");
 
                         if (timeIn != null && timeOut == null) {
-                            // ✅ Time-In exists, but no Time-Out → Allow Time-Out recording
+                            Map<String, Object> updateData = new HashMap<>();
+                            updateData.put("timeOut", FieldValue.serverTimestamp());
+                            updateData.put("feedback", feedback);
+
                             documentSnapshot.getReference()
-                                    .update("timeOut", FieldValue.serverTimestamp())
+                                    .update(updateData)
                                     .addOnSuccessListener(aVoid -> {
                                         Toast.makeText(this, "✅ Time Out recorded successfully.", Toast.LENGTH_SHORT).show();
                                         finish();

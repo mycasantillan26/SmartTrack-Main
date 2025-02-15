@@ -62,7 +62,8 @@ public class Teachers_CreateRoom extends AppCompatActivity {
         // Enable/Disable the Create Room Button
         TextWatcher textWatcher = new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence charSequence, int start, int count, int after) {}
+            public void beforeTextChanged(CharSequence charSequence, int start, int count, int after) {
+            }
 
             @Override
             public void onTextChanged(CharSequence charSequence, int start, int before, int count) {
@@ -70,7 +71,8 @@ public class Teachers_CreateRoom extends AppCompatActivity {
             }
 
             @Override
-            public void afterTextChanged(Editable editable) {}
+            public void afterTextChanged(Editable editable) {
+            }
         };
 
         // Add text change listener to all fields
@@ -90,9 +92,6 @@ public class Teachers_CreateRoom extends AppCompatActivity {
         setupDayButton(fridayButton, "Friday");
         setupDayButton(saturdayButton, "Saturday");
         setupDayButton(sundayButton, "Sunday");
-
-
-
 
 
         // Back Button
@@ -206,13 +205,20 @@ public class Teachers_CreateRoom extends AppCompatActivity {
 
     private List<String> getActiveDays() {
         List<String> days = new ArrayList<>();
-        if (mondayButton.getTag() != null && mondayButton.getTag().equals("active")) days.add("Monday");
-        if (tuesdayButton.getTag() != null && tuesdayButton.getTag().equals("active")) days.add("Tuesday");
-        if (wednesdayButton.getTag() != null && wednesdayButton.getTag().equals("active")) days.add("Wednesday");
-        if (thursdayButton.getTag() != null && thursdayButton.getTag().equals("active")) days.add("Thursday");
-        if (fridayButton.getTag() != null && fridayButton.getTag().equals("active")) days.add("Friday");
-        if (saturdayButton.getTag() != null && saturdayButton.getTag().equals("active")) days.add("Saturday");
-        if (sundayButton.getTag() != null && sundayButton.getTag().equals("active")) days.add("Sunday");
+        if (mondayButton.getTag() != null && mondayButton.getTag().equals("active"))
+            days.add("Monday");
+        if (tuesdayButton.getTag() != null && tuesdayButton.getTag().equals("active"))
+            days.add("Tuesday");
+        if (wednesdayButton.getTag() != null && wednesdayButton.getTag().equals("active"))
+            days.add("Wednesday");
+        if (thursdayButton.getTag() != null && thursdayButton.getTag().equals("active"))
+            days.add("Thursday");
+        if (fridayButton.getTag() != null && fridayButton.getTag().equals("active"))
+            days.add("Friday");
+        if (saturdayButton.getTag() != null && saturdayButton.getTag().equals("active"))
+            days.add("Saturday");
+        if (sundayButton.getTag() != null && sundayButton.getTag().equals("active"))
+            days.add("Sunday");
         return days;
     }
 

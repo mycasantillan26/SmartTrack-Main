@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -85,7 +86,7 @@ public class Students_Room extends AppCompatActivity {
 
         // Setup Views
         setupUI();
-        fetchUserDetailed(uid);
+        fetchStudentDetailed(uid);
         fetchRooms();
     }
 
@@ -159,7 +160,7 @@ public class Students_Room extends AppCompatActivity {
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
     }
 
-    private void fetchUserDetailed(String uid) {
+    private void fetchStudentDetailed(String uid) {
         Log.d(TAG, "Fetching student details for UID: " + uid);
         FirebaseFirestore.getInstance().collection("students")
                 .document(uid)
@@ -233,7 +234,7 @@ public class Students_Room extends AppCompatActivity {
                 .addOnSuccessListener(studentDoc -> {
                     if (studentDoc.exists()) {
                         Log.d(TAG, "Student is part of room: " + roomId);
-                        createRoomButton(subjectCode, section);
+                        createRoomButton(subjectCode, section, roomId);
                     } else {
                         Log.d(TAG, "Student not part of room: " + roomId);
                     }
@@ -244,35 +245,56 @@ public class Students_Room extends AppCompatActivity {
     }
 
 
-    private void createRoomButton(String subjectCode, String section) {
+
+    private void createRoomButton(String subjectCode, String section, String roomId) {
         Log.d(TAG, "Creating button for room: " + subjectCode + " - " + section);
 
         Button roomButton = new Button(this);
-        roomButton.setLayoutParams(new LinearLayout.LayoutParams(
+
+        // ✅ Add space between buttons using margins
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
+        );
+        layoutParams.setMargins(0, 20, 0, 20); // Adds 20dp space above and below
+        roomButton.setLayoutParams(layoutParams);
+
+        // Set button text and style
         roomButton.setText(subjectCode + " - " + section);
-        roomButton.setTextSize(18);
+        roomButton.setTextSize(25);
         roomButton.setTextColor(getResources().getColor(R.color.maroon, null));
         roomButton.setBackgroundResource(R.drawable.button_border);
 
+        // ✅ Correcting the Intent to Start StudentView with roomId
         roomButton.setOnClickListener(v -> {
-            Toast.makeText(this, "Room clicked: " + subjectCode + " - " + section, Toast.LENGTH_SHORT).show();
+            if (roomId == null || roomId.isEmpty()) {
+                Log.e(TAG, "Room button click failed: roomId is NULL or EMPTY");
+                Toast.makeText(this, "Error: Room ID missing!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Log.d(TAG, "Room button clicked: Redirecting to StudentView with roomId: " + roomId);
+
+            Intent intent = new Intent(Students_Room.this, StudentView.class);
+            intent.putExtra("roomId", roomId); // ✅ Pass the roomId properly
+            startActivity(intent);
         });
 
+        // ✅ Run UI update on the main thread
         runOnUiThread(() -> {
-            // Make the layout visible and add the button
             if (roomsLayout.getVisibility() == View.GONE) {
                 roomsLayout.setVisibility(View.VISIBLE);
             }
             roomsLayout.addView(roomButton);
             Log.d(TAG, "Button added to UI. Total children: " + roomsLayout.getChildCount());
+
+            // ✅ Scroll to the bottom to show the latest added button
+            ScrollView scrollView = findViewById(R.id.scrollView);
+            scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
         });
     }
-
     private void fetchStudentSections(String roomId, String studentId) {
-        Log.d(TAG, "Fetching sections for student: " + studentId + " in room: " + roomId);
+        Log.d(TAG, "Fetching student sections for Room ID: " + roomId + ", Student ID: " + studentId);
 
         FirebaseFirestore.getInstance()
                 .collection("rooms")
@@ -280,54 +302,21 @@ public class Students_Room extends AppCompatActivity {
                 .collection("students")
                 .document(studentId)
                 .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        // Extract data for the student
-                        String subjectCode = documentSnapshot.getString("subjectCode");
-                        String sectionName = documentSnapshot.getString("section");
-
-                        if (subjectCode != null && sectionName != null) {
-                            Log.d(TAG, "Found section: " + subjectCode + " - " + sectionName);
-                            createSectionButton(subjectCode, sectionName);
-                        } else {
-                            Log.e(TAG, "Missing subjectCode or sectionName for student: " + studentId);
-                            Toast.makeText(this, "No sections available for this student.", Toast.LENGTH_SHORT).show();
-                        }
+                .addOnSuccessListener(document -> {
+                    if (document.exists()) {
+                        String section = document.getString("section");
+                        Log.d(TAG, "Student section found: " + section);
+                        // You can perform any UI update or logic based on this section data
                     } else {
-                        Log.d(TAG, "No document found for student in this room.");
-                        Toast.makeText(this, "Student not found in this room.", Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "No section data found for the student in this room.");
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error fetching student sections: " + e.getMessage());
-                    Toast.makeText(this, "Error fetching sections: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error fetching student sections: " + e.getMessage(), e);
+                    Toast.makeText(this, "Failed to fetch section data.", Toast.LENGTH_SHORT).show();
                 });
     }
 
-    private void createSectionButton(String subjectCode, String sectionName) {
-        Log.d(TAG, "Creating button for: " + subjectCode + " - " + sectionName);
 
-        Button sectionButton = new Button(this);
-        sectionButton.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-
-        // Set the button label
-        String buttonLabel = subjectCode + " - " + sectionName;
-        sectionButton.setText(buttonLabel);
-        sectionButton.setTextSize(25);
-        sectionButton.setTextColor(getResources().getColor(R.color.maroon, null));
-        sectionButton.setBackgroundResource(R.drawable.button_border);
-
-        // Set click listener for the button
-        sectionButton.setOnClickListener(v -> {
-            Toast.makeText(this, "Section clicked: " + buttonLabel, Toast.LENGTH_SHORT).show();
-            // You can navigate to another activity or perform actions related to the section here
-        });
-
-        // Add the button to the layout
-        roomsLayout.addView(sectionButton);
-    }
 
 }

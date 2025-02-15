@@ -5,7 +5,9 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.common.BitMatrix;
@@ -55,5 +57,7 @@ public class GenerateCode extends AppCompatActivity {
         } catch (WriterException e) {
             e.printStackTrace();
         }
-    }
+
+
+}
 }

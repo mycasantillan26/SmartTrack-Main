@@ -9,12 +9,12 @@
         android:id="@+id/scanGuideText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Place QR code inside the box"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="50dp"
+        android:text="Place QR code inside the box"
+        android:textColor="#FFFFFF"
         android:textSize="20sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF" />
+        android:textStyle="bold" />
 
     <!-- Scanner Frame -->
     <View

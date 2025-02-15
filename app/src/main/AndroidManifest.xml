@@ -107,10 +107,19 @@
             android:theme="@style/Theme.SmartTrack" />
         <activity
             android:name=".CustomCaptureActivity"
+            android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
+
+
+
+
         <activity
             android:name=".ViewStudents"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".StudentView"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
 
@@ -158,6 +167,10 @@
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
         <activity
+            android:name=".Teachers_EditRoom"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
             android:name=".GenerateCode"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
@@ -167,7 +180,7 @@
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
         <activity
-            android:name=".Adminss_Room"
+            android:name=".Admins_Room"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
         <activity

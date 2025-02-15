@@ -1,11 +1,7 @@
 package com.example.smarttrack;
-import android.app.AlertDialog;
+
 import android.content.Intent;
-import android.graphics.Color;
 import android.os.Bundle;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -25,8 +21,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Teachers_Room extends AppCompatActivity {
-
+public class Admins_Room extends AppCompatActivity {
     private String uid;
     private LinearLayout roomsLayout;
     private ImageView reportIcon;
@@ -64,7 +59,7 @@ public class Teachers_Room extends AppCompatActivity {
 
         ImageView menuIcon = findViewById(R.id.menuIcon);
         menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
-        fetchStudentDetails(uid);
+        fetchUserDetails(uid);
 
         // Fetch rooms created by the teacher
         fetchRoomsByTeacher(uid);
@@ -74,7 +69,7 @@ public class Teachers_Room extends AppCompatActivity {
 
         // Set OnClickListener for createRoomButton to redirect to Teachers_CreateRoom activity
         createRoomButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Teachers_Room.this, Teachers_CreateRoom.class);
+            Intent intent = new Intent(Admins_Room.this, Teachers_CreateRoom.class);
             intent.putExtra("uid", uid);  // Pass the UID to Teachers_CreateRoom
             startActivity(intent);
         });
@@ -98,21 +93,17 @@ public class Teachers_Room extends AppCompatActivity {
                         }
                         displayRooms(roomDetails);
                     } else {
-                        Toast.makeText(Teachers_Room.this, "No rooms found", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(Admins_Room.this, "No rooms found", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(Teachers_Room.this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(Admins_Room.this, "Error fetching rooms: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
-
-
-
-
     // Method to display rooms as buttons
     private void displayRooms(Map<String, String> roomDetails) {
-        roomsLayout.removeAllViews();  // Clear existing views
+        roomsLayout.removeAllViews();  // Clear any existing views in the layout
 
         if (!roomDetails.isEmpty()) {
             roomsLayout.setVisibility(View.VISIBLE);
@@ -122,11 +113,11 @@ public class Teachers_Room extends AppCompatActivity {
             for (Map.Entry<String, String> entry : roomDetails.entrySet()) {
                 String displayText = entry.getKey();
                 String roomCode = entry.getValue();
+                // Assuming the display text includes both subjectCode and section in the format "subjectCode - section"
                 String[] parts = displayText.split(" - ");
                 String subjectCode = parts[0];
-                String section = parts.length > 1 ? parts[1] : "";
+                String section = parts.length > 1 ? parts[1] : "";  // Check if there is a section available
 
-                // Create Room Button
                 Button roomButton = new Button(this);
                 roomButton.setText(displayText);
                 roomButton.setTextSize(25);
@@ -134,109 +125,28 @@ public class Teachers_Room extends AppCompatActivity {
                 roomButton.setTextColor(getResources().getColor(android.R.color.black));
                 roomButton.setBackground(getResources().getDrawable(R.drawable.button_border));
 
+                float density = getResources().getDisplayMetrics().density;
+                int marginBottom = (int) (10 * density);
+
                 LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
                 );
-                layoutParams.setMargins(0, 10, 0, 10);
+                layoutParams.setMargins(0, 0, 0, marginBottom);
                 roomButton.setLayoutParams(layoutParams);
 
-                // ✅ Handle Normal Click - Show Floating Window
                 roomButton.setOnClickListener(v -> {
+                    // Show the floating window with the room code, subject code, and section
                     showFloatingWindow(roomCode, subjectCode, section);
-                });
-
-                // ✅ Handle Long Press - Show Edit/Delete Buttons
-                roomButton.setOnLongClickListener(v -> {
-                    showEditDeleteButtons(roomButton, roomCode);
-                    return true; // Consume the long-press event
                 });
 
                 roomsLayout.addView(roomButton);
             }
         } else {
             TextView noRoomsTextView = findViewById(R.id.noRoomsTextView);
-            noRoomsTextView.setVisibility(View.VISIBLE);
+            noRoomsTextView.setVisibility(View.VISIBLE);  // Show "No Rooms Available" message if list is empty
         }
     }
-
-    private void showEditDeleteButtons(Button roomButton, String roomCode) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-        // Set the title with maroon color
-        SpannableString title = new SpannableString("What do you want to do?");
-        title.setSpan(new ForegroundColorSpan(Color.parseColor("#800000")), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        builder.setTitle(title);
-
-        // Create the dialog
-        AlertDialog dialog = builder.create();
-
-        // Set up the buttons
-        builder.setPositiveButton("Edit", (dialogInterface, which) -> {
-            FirebaseFirestore.getInstance().collection("rooms")
-                    .whereEqualTo("roomCode", roomCode)
-                    .get()
-                    .addOnSuccessListener(querySnapshot -> {
-                        if (!querySnapshot.isEmpty()) {
-                            String roomId = querySnapshot.getDocuments().get(0).getId();
-                            Log.d("Teachers_Room", "Room ID for Edit: " + roomId);
-
-                            Intent intent = new Intent(Teachers_Room.this, Teachers_EditRoom.class);
-                            intent.putExtra("roomId", roomId);
-                            startActivity(intent);
-                        } else {
-                            Toast.makeText(this, "Room not found", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .addOnFailureListener(e -> {
-                        Toast.makeText(this, "Error fetching room ID: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
-        });
-
-        builder.setNegativeButton("Delete", (dialogInterface, which) -> {
-            deleteRoom(roomCode);
-        });
-
-        builder.setNeutralButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
-
-        // Create and show the dialog
-        dialog = builder.create();
-        dialog.show();
-
-        // Set Maroon color for buttons
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.parseColor("#800000"));
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.parseColor("#800000"));
-        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(Color.GRAY); // Keeping Cancel button gray
-    }
-
-
-    private void deleteRoom(String roomCode) {
-        FirebaseFirestore.getInstance().collection("rooms")
-                .whereEqualTo("roomCode", roomCode)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (!querySnapshot.isEmpty()) {
-                        String roomId = querySnapshot.getDocuments().get(0).getId();
-                        FirebaseFirestore.getInstance().collection("rooms")
-                                .document(roomId)
-                                .delete()
-                                .addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(this, "Room deleted successfully", Toast.LENGTH_SHORT).show();
-                                    fetchRoomsByTeacher(uid); // Refresh rooms list
-                                })
-                                .addOnFailureListener(e -> {
-                                    Toast.makeText(this, "Error deleting room: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                });
-                    } else {
-                        Toast.makeText(this, "Room not found", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Error fetching room: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-    }
-
-
 
 
 
@@ -257,7 +167,7 @@ public class Teachers_Room extends AppCompatActivity {
 
         // Set onClickListeners for the buttons inside the floating window
         generateCodeButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Teachers_Room.this, GenerateCode.class);
+            Intent intent = new Intent(Admins_Room.this, GenerateCode.class);
             intent.putExtra("roomCode", roomCode); // Pass the roomCode to GenerateCode
             intent.putExtra("subjectSection", subjectCode + " - " + section); // Include subject and section
             startActivity(intent);
@@ -278,7 +188,7 @@ public class Teachers_Room extends AppCompatActivity {
                             String roomId = queryDocumentSnapshots.getDocuments().get(0).getId();
                             Log.d("showFloatingWindow", "Room ID resolved: " + roomId);
 
-                            Intent intent = new Intent(Teachers_Room.this, ViewStudents.class);
+                            Intent intent = new Intent(Admins_Room.this, ViewStudents.class);
                             intent.putExtra("roomId", roomId); // Pass the resolved roomId to ViewStudents
                             intent.putExtra("section", section); // Pass the section to ViewStudents
                             intent.putExtra("subjectCode", subjectCode); // Pass the subjectCode to ViewStudents
@@ -306,7 +216,7 @@ public class Teachers_Room extends AppCompatActivity {
 
 
     // Fetch teacher details (name, idNumber, etc.)
-    private void fetchStudentDetails(String uid) {
+    private void fetchUserDetails(String uid) {
         FirebaseFirestore.getInstance().collection("teachers")
                 .document(uid)
                 .get()
@@ -330,7 +240,7 @@ public class Teachers_Room extends AppCompatActivity {
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setTitle("Report");
             }
-            Intent intent = new Intent(Teachers_Room.this, Teachers_Report.class);
+            Intent intent = new Intent(Admins_Room.this, Admins_Report.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);
@@ -340,7 +250,7 @@ public class Teachers_Room extends AppCompatActivity {
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setTitle("Home");
             }
-            Intent intent = new Intent(Teachers_Room.this, Teachers_Home.class);
+            Intent intent = new Intent(Admins_Room.this, Admins_Home.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);
@@ -350,7 +260,7 @@ public class Teachers_Room extends AppCompatActivity {
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setTitle("Calendar");
             }
-            Intent intent = new Intent(Teachers_Room.this, Teachers_Calendar.class);
+            Intent intent = new Intent(Admins_Room.this, Admins_Calendar.class);
             intent.putExtra("uid", uid);
             startActivity(intent);
             overridePendingTransition(0, 0);

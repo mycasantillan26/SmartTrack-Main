@@ -102,6 +102,20 @@
             android:textColor="@android:color/white"
             android:textSize="16sp" />
 
+        <Button
+            android:id="@+id/registerTeacherButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/navigationBar"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="51dp"
+            android:background="@color/maroon"
+            android:padding="10dp"
+            android:text="Register A Teacher"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/roomsLayout"
             android:layout_width="match_parent"

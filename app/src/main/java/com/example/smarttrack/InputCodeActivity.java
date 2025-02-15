@@ -6,7 +6,9 @@ import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -63,24 +65,46 @@ public class InputCodeActivity extends AppCompatActivity {
     }
 
     private void checkRoomCapacityAndSaveStudent(String roomId, String subjectCode, String section, String teacherId, int maxStudents) {
-        firestore.collection("rooms")
-                .document(roomId)
-                .collection("students")
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        int currentStudents = Objects.requireNonNull(task.getResult()).size();
+        String studentId = FirebaseAuth.getInstance().getUid();
 
-                        if (currentStudents < maxStudents) {
-                            saveStudentToRoom(roomId, subjectCode, section, teacherId);
-                        } else {
-                            Toast.makeText(InputCodeActivity.this, "Room is full. Maximum capacity reached.", Toast.LENGTH_SHORT).show();
-                        }
+        if (studentId == null) {
+            Toast.makeText(this, "You are not logged in.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check if student already enrolled in the room
+        firestore.collection("rooms").document(roomId)
+                .collection("students").document(studentId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        // Student is already enrolled
+                        Toast.makeText(InputCodeActivity.this, "You already enrolled in this room.", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(InputCodeActivity.this, "Error checking room capacity: " + Objects.requireNonNull(task.getException()).getMessage(), Toast.LENGTH_SHORT).show();
+                        // Student is not enrolled yet, check room capacity
+                        firestore.collection("rooms").document(roomId)
+                                .collection("students")
+                                .get()
+                                .addOnCompleteListener(task -> {
+                                    if (task.isSuccessful()) {
+                                        int currentStudents = Objects.requireNonNull(task.getResult()).size();
+
+                                        if (currentStudents < maxStudents) {
+                                            saveStudentToRoom(roomId, subjectCode, section, teacherId);
+                                        } else {
+                                            Toast.makeText(InputCodeActivity.this, "Room is full. Maximum capacity reached.", Toast.LENGTH_SHORT).show();
+                                        }
+                                    } else {
+                                        Toast.makeText(InputCodeActivity.this, "Error checking room capacity: " + Objects.requireNonNull(task.getException()).getMessage(), Toast.LENGTH_SHORT).show();
+                                    }
+                                });
                     }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(InputCodeActivity.this, "Error checking enrollment status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
+
 
     private void saveStudentToRoom(String roomId, String subjectCode, String section, String teacherId) {
         String studentId = FirebaseAuth.getInstance().getUid();

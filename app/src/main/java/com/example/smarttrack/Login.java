@@ -62,6 +62,7 @@ public class Login extends AppCompatActivity {
         // Set click listener for the register link
         registerLink.setOnClickListener(v -> {
             Intent intent = new Intent(Login.this, Register.class);
+            intent.putExtra("userType", "student"); // Always register as a student
             startActivity(intent);
         });
     }
@@ -87,48 +88,69 @@ public class Login extends AppCompatActivity {
                                         DocumentSnapshot teacherDoc = teacherTask.getResult().getDocuments().get(0);
                                         verifyLogin(teacherDoc, "teachers", password);
                                     } else {
-                                        Toast.makeText(Login.this, "Invalid ID Number or password.", Toast.LENGTH_SHORT).show();
+                                        firestore.collection("administrator") // Check administrator collection
+                                                .whereEqualTo("idNumber", idNumber)
+                                                .get()
+                                                .addOnCompleteListener(adminTask -> {
+                                                    if (adminTask.isSuccessful() && !adminTask.getResult().isEmpty()) {
+                                                        DocumentSnapshot adminDoc = adminTask.getResult().getDocuments().get(0);
+                                                        verifyLogin(adminDoc, "administrator", password);
+                                                    } else {
+                                                        Toast.makeText(Login.this, "Invalid ID Number or password.", Toast.LENGTH_SHORT).show();
+                                                    }
+                                                });
                                     }
                                 });
                     }
                 });
     }
 
+
     private void verifyLogin(DocumentSnapshot document, String collection, String password) {
         String email = document.getString("email");
-        boolean isConfirmedByAdmin = collection.equals("teachers") && document.getBoolean("isConfirmedByAdmin");
+
+        if (email == null || email.isEmpty()) {
+            Toast.makeText(this, "No email found for this account.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // ✅ Display email before authentication
+        Toast.makeText(this, "Authenticating: " + email, Toast.LENGTH_SHORT).show();
 
         firebaseAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        // Reload user data to ensure the email verification status is updated
                         firebaseAuth.getCurrentUser().reload().addOnCompleteListener(reloadTask -> {
                             if (reloadTask.isSuccessful()) {
                                 boolean emailVerified = firebaseAuth.getCurrentUser().isEmailVerified();
 
                                 if (!emailVerified) {
-                                    Toast.makeText(this, "Please verify your email before logging in.", Toast.LENGTH_SHORT).show();
-                                    firebaseAuth.signOut(); // Log out the user
+                                    Toast.makeText(this, "Please verify your email before logging in.", Toast.LENGTH_LONG).show();
+                                    firebaseAuth.signOut();
                                     return;
                                 }
 
-                                if (collection.equals("teachers") && !isConfirmedByAdmin) {
-                                    Toast.makeText(this, "Your account has not been approved by an admin yet.", Toast.LENGTH_SHORT).show();
-                                    firebaseAuth.signOut(); // Log out the user
+                                // ✅ Success messages
+                                if (collection.equals("administrator")) {
+                                    Toast.makeText(this, "Admin Login Successful!", Toast.LENGTH_LONG).show();
+                                    navigateToDashboard(document);
                                     return;
                                 }
 
-                                Toast.makeText(this, "Login successful! Welcome " + (collection.equals("students") ? "Student" : "Teacher") + ".", Toast.LENGTH_SHORT).show();
-                                navigateToDashboard(document); // Pass the document to navigateToDashboard
+                                Toast.makeText(this, "Login successful!", Toast.LENGTH_LONG).show();
+                                navigateToDashboard(document);
                             } else {
-                                Toast.makeText(this, "Error verifying email status. Please try again.", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, "Error verifying email status. Try again.", Toast.LENGTH_LONG).show();
                             }
                         });
                     } else {
-                        Toast.makeText(this, "Invalid email or password.", Toast.LENGTH_SHORT).show();
+                        // ❌ Show Firebase error message using Toast
+                        Toast.makeText(this, "Login Failed: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
                     }
                 });
     }
+
+
 
     private void navigateToDashboard(DocumentSnapshot document) {
         String userType = getUserType(document);  // Get the userType from the document
@@ -137,7 +159,7 @@ public class Login extends AppCompatActivity {
         String uid = document.getId();  // Fetch the UID from Firestore document ID
 
         Intent intent;
-        if (userType.equals("admin")) {
+        if (userType.equals("Admin")) {
             intent = new Intent(this, Admins_Home.class);
         } else if (userType.equals("Teacher")) {
             intent = new Intent(this, Teachers_Home.class);
@@ -152,18 +174,19 @@ public class Login extends AppCompatActivity {
     }
 
     private String getUserType(DocumentSnapshot document) {
-        // Check if 'userType' exists in the document
         String userType = document.getString("userType");
 
-        // If 'userType' is not set, determine user type based on collection name
         if (userType == null || userType.isEmpty()) {
             if (document.getReference().getPath().contains("teachers")) {
                 userType = "Teacher";
             } else if (document.getReference().getPath().contains("students")) {
                 userType = "Student";
+            } else if (document.getReference().getPath().contains("administrator")) {
+                userType = "admin"; // Assign userType as admin
             }
         }
 
-        return userType != null ? userType : "Student"; // Default to "Student" if userType is still null
+        return userType != null ? userType : "Student";
     }
+
 }

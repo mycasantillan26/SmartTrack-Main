@@ -115,7 +115,7 @@ public class Students_Room extends AppCompatActivity {
 
 // Set click listener for scanQRButton
         scanQRButton.setOnClickListener(v -> {
-            Intent intent = new Intent(Students_Room.this, GenerateCode.class);
+            Intent intent = new Intent(Students_Room.this, ScanQRActivity.class);
             startActivity(intent);
         });
 

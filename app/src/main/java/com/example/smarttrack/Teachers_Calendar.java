@@ -265,7 +265,7 @@ public class Teachers_Calendar extends AppCompatActivity implements EventsAdapte
         intent.putExtra("eventTitle", "Upcoming Event: " + event.getTitle());
         intent.putExtra("eventMessage", message);
 
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, (event.getId() + message).hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, (event.getId() + message).hashCode(), intent,  PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

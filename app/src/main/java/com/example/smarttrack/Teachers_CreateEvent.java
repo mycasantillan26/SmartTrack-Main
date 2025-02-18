@@ -1,5 +1,7 @@
 package com.example.smarttrack;
 
+import static com.example.smarttrack.Teacher_Map.LOCATION_REQUEST_CODE;
+
 import android.app.DatePickerDialog;
 import android.app.AlertDialog;
 import android.app.TimePickerDialog;
@@ -72,6 +74,11 @@ public class Teachers_CreateEvent extends AppCompatActivity {
 
         // Set the default selected date
         selectedDateTextView.setText(String.format(Locale.getDefault(), "Selected Date: %04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay));
+        locationField.setOnClickListener(v -> {
+            Intent intent = new Intent(Teachers_CreateEvent.this, Teacher_Map.class);
+            startActivityForResult(intent, 100); // Request code 100 for location
+        });
+
 
         // Set up button listeners
         selectDateButton.setOnClickListener(v -> showDatePickerDialog());
@@ -87,6 +94,19 @@ public class Teachers_CreateEvent extends AppCompatActivity {
         selectRoomsButton.setOnClickListener(v -> showRoomSelectionDialog());
         fetchRooms();
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == LOCATION_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
+            String selectedLocation = data.getStringExtra("selectedLocation");
+            if (selectedLocation != null) {
+                EditText locationField = findViewById(R.id.locationField);
+                locationField.setText(selectedLocation); // Set location
+            }
+        }
+    }
+
 
     private void showDatePickerDialog() {
         Calendar calendar = Calendar.getInstance();
@@ -279,4 +299,5 @@ public class Teachers_CreateEvent extends AppCompatActivity {
                     .set(roomData);
         }
     }
+
 }

@@ -49,7 +49,15 @@ android {
         kotlinCompilerExtensionVersion '1.5.2'
     }
 }
+    repositories {
+        google()
+        mavenCentral()
 
+        // 🔥 Ensure flatDir is inside repositories
+        flatDir {
+            dirs 'libs' // This tells Gradle to look for .aar files in the 'libs' folder
+        }
+    }
 dependencies {
     // Core and UI Libraries
     implementation 'androidx.core:core-ktx:1.10.1'
@@ -113,5 +121,13 @@ dependencies {
     // ZXing for QR code processing
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
     implementation 'com.google.zxing:core:3.5.1'
+
+
+    implementation 'org.osmdroid:osmdroid-android:6.1.13'
+    implementation 'com.github.MKergall:osmbonuspack:6.9.0'
+   // implementation(name: 'osmbonuspack_v6.7.0', ext: 'aar')
+  //  implementation(name: 'osmbonuspack_6.9.0', ext: 'aar')
+
+
 
 }

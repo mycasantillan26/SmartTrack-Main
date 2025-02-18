@@ -1,11 +1,10 @@
 package com.example.smarttrack;
 
 import java.io.Serializable;
-
-import java.util.List;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class Event implements Serializable {
@@ -18,13 +17,17 @@ public class Event implements Serializable {
     private String endTime;
     private boolean notify;
     private boolean wholeDay;
-    private String students; // New field for students
+    private String students;
+    private String teacherId; // 🔥 ADD THIS FIELD
+
+    private List<String> rooms;
 
     // Default constructor required for Firestore
     public Event() {}
 
     public Event(String id, String eventDate, String title, String description, String location,
-                 String startTime, String endTime, boolean notify, boolean wholeDay, String students) {
+                 String startTime, String endTime, boolean notify, boolean wholeDay,
+                 String students, String teacherId, List<String> rooms) {
         this.id = id;
         this.eventDate = eventDate;
         this.title = title;
@@ -34,10 +37,21 @@ public class Event implements Serializable {
         this.endTime = endTime;
         this.notify = notify;
         this.wholeDay = wholeDay;
-        this.students = students; // Initialize students
+        this.students = students;
+        this.teacherId = teacherId; // 🔥 Initialize teacherId
+        this.rooms = rooms;
     }
 
-    // Getters and setters
+    // ✅ Getter and Setter for teacherId
+    public String getTeacherId() {
+        return teacherId;
+    }
+
+    public void setTeacherId(String teacherId) {
+        this.teacherId = teacherId;
+    }
+
+    // ✅ Existing Getters and Setters
     public String getId() {
         return id;
     }
@@ -117,8 +131,6 @@ public class Event implements Serializable {
     public void setStudents(String students) {
         this.students = students;
     }
-
-    private List<String> rooms;
 
     public List<String> getRooms() {
         return rooms;

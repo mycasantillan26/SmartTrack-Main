@@ -13,7 +13,12 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
 
+
+    <!--  if target android 10+ -->
 
 
     <!-- Require Camera Hardware -->
@@ -26,7 +31,19 @@
         android:label="@string/app_name"
         android:roundIcon="@drawable/logo"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.SmartTrack">
+
+
+            <meta-data
+                android:name="com.google.android.geo.API_KEY"
+                android:value="YOUR_GOOGLE_MAPS_API_KEY"/>
+
+        <meta-data
+            android:name="com.google.firebase.appcheck.v2"
+            android:value="true" />
+
+
 
         <!-- Google Play Services Metadata -->
         <meta-data
@@ -168,6 +185,10 @@
             android:theme="@style/Theme.SmartTrack" />
         <activity
             android:name=".Teachers_EditRoom"
+            android:exported="true"
+            android:theme="@style/Theme.SmartTrack" />
+        <activity
+            android:name=".Teacher_Map"
             android:exported="true"
             android:theme="@style/Theme.SmartTrack" />
         <activity
